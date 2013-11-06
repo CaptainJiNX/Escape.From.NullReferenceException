@@ -37,6 +37,11 @@ namespace ApiClient
 			return RunCommand("getcharacter", characterId);
 		}
 
+		public JObject DeleteCharacter(string characterId)
+		{
+			return RunCommand("deletecharacter", characterId);
+		}
+
 		private JObject RunCommand(string command, params string[] args)
 		{
 			return JObject.Parse(_client.DownloadString(GetCommandUri(command, args)));
