@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net;
 using Newtonsoft.Json.Linq;
 
-namespace Escape.From.NullReferenceException.ApiClient
+namespace ApiClient
 {
 	public class ClientWrapper
 	{

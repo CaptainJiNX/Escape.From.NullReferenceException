@@ -1,8 +1,8 @@
 ﻿using System;
 using System.IO;
-using Escape.From.NullReferenceException.ApiClient;
+using ApiClient;
 
-namespace Escape.From.NullReferenceException.ConsoleApp
+namespace ConsoleApp
 {
 	class Program
 	{
