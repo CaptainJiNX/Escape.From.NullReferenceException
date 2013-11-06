@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using Newtonsoft.Json.Linq;
 
@@ -25,11 +23,9 @@ namespace ApiClient
 			return RunCommand("getchartemplate");
 		}
 
-		public IEnumerable<JObject> GetParty()
+		public JObject GetParty()
 		{
-			var party = RunCommand("getparty");
-
-			return party["characters"].Select(id => GetCharacter((string)id));
+			return RunCommand("getparty");
 		}
 
 		public JObject GetCharacter(string charId)
@@ -42,9 +38,9 @@ namespace ApiClient
 			return RunCommand("deletecharacter", charId);
 		}
 
-		public JObject CreateCharacter(string name)
+		public JObject CreateCharacter(string name, int str, int con, int dex, int @int, int wis)
 		{
-			return RunCommand("createcharacter", string.Format("name:{0},str:10,con:10,dex:10,int:10,wis:10", name));
+			return RunCommand("createcharacter", string.Format("name:{0},str:{1},con:{2},dex:{3},int:{4},wis:{5}", name, str, con, dex, @int, wis));
 		}
 
 		public JObject AllocatePoints(Attribute attr, string charId)
