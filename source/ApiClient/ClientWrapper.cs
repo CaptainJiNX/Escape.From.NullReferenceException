@@ -32,14 +32,89 @@ namespace ApiClient
 			return party["characters"].Select(id => GetCharacter((string)id));
 		}
 
-		public JObject GetCharacter(string characterId)
+		public JObject GetCharacter(string charId)
 		{
-			return RunCommand("getcharacter", characterId);
+			return RunCommand("getcharacter", charId);
 		}
 
-		public JObject DeleteCharacter(string characterId)
+		public JObject DeleteCharacter(string charId)
 		{
-			return RunCommand("deletecharacter", characterId);
+			return RunCommand("deletecharacter", charId);
+		}
+
+		public JObject CreateCharacter(string name)
+		{
+			return RunCommand("createcharacter", string.Format("name:{0},str:10,con:10,dex:10,int:10,wis:10", name));
+		}
+
+		public JObject AllocatePoints(Attribute attr, string charId)
+		{
+			return RunCommand("allocatepoints", attr.ToString().ToLowerInvariant(), charId);
+		}
+
+		public JObject Quaff(string itemId, string charId)
+		{
+			return RunCommand("quaff", itemId, charId);
+		}
+
+		public JObject Wield(string itemId, string charId)
+		{
+			return RunCommand("wield", itemId, charId);
+		}
+
+		public JObject Unwield(string itemId, string charId)
+		{
+			return RunCommand("unwield", itemId, charId);
+		}
+
+		public JObject Equip(string itemId, string charId)
+		{
+			return RunCommand("equip", itemId, charId);
+		}
+
+		public JObject Unequip(string itemId, string charId)
+		{
+			return RunCommand("unequip", itemId, charId);
+		}
+
+		public JObject Move(string charId, Direction direction)
+		{
+			return RunCommand("move", charId, direction.ToString().ToLowerInvariant());
+		}
+
+		public JObject Planeshift(string charId, string planeName)
+		{
+			return RunCommand("planeshift", charId, planeName);
+		}
+
+		public JObject Scan(string charId)
+		{
+			return RunCommand("scan", charId);
+		}
+
+		public JObject GetInfoFor(string id)
+		{
+			return RunCommand("getinfofor", id);
+		}
+
+		public JObject LevelUp(string charId)
+		{
+			return RunCommand("levelup", charId);
+		}
+
+		public JObject LevelDown(string charId)
+		{
+			return RunCommand("leveldown", charId);
+		}
+
+		public JObject Get(string charId)
+		{
+			return RunCommand("get", charId);
+		}
+
+		public JObject Drop(string itemId, string charId)
+		{
+			return RunCommand("drop", itemId, charId);
 		}
 
 		private JObject RunCommand(string command, params string[] args)
