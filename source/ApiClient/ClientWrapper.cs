@@ -4,7 +4,9 @@ using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
-	public class ClientWrapper
+	//NOTHING, BLOCKED and PERIMETER can’t be walked on, all else can (if no entity is standing there)
+
+	public class ClientWrapper : IClientWrapper
 	{
 		private readonly Guid _sessionId;
 		private readonly WebClient _client;
@@ -88,9 +90,9 @@ namespace ApiClient
 			return RunCommand("scan", charId);
 		}
 
-		public JObject GetInfoFor(string id)
+		public ItemInfo GetInfoFor(string id)
 		{
-			return RunCommand("getinfofor", id);
+			return RunCommand("getinfofor", id).ToObject<ItemInfo>();
 		}
 
 		public JObject LevelUp(string charId)
