@@ -6,7 +6,7 @@ namespace ApiClient
 {
 	public class Map
 	{
-		private readonly Dictionary<Position, int> _known = new Dictionary<Position, int>();
+		private readonly Dictionary<Position, uint> _known = new Dictionary<Position, uint>();
 
 		private readonly Dictionary<string, Position> _items = new Dictionary<string, Position>();
 		private readonly Dictionary<string, Position> _entities = new Dictionary<string, Position>();
@@ -57,7 +57,7 @@ namespace ApiClient
 				var columns = rows[y].ToArray();
 				for (int x = 0; x < columns.Length; x++)
 				{
-					UpdatePosition(new Position(x + bx, y + @by), columns[x].Value<int>());
+					UpdatePosition(new Position(x + bx, y + @by), columns[x].Value<uint>());
 				}
 			}
 		}
@@ -86,19 +86,14 @@ namespace ApiClient
 			}
 		}
 
-		private void UpdatePosition(Position pos, int val)
+		private void UpdatePosition(Position pos, uint val)
 		{
 			_known[pos] = val;
 		}
 
-		public int GetPositionValue(Position position)
+		public uint GetPositionValue(Position position)
 		{
-			if (_known.ContainsKey(position))
-			{
-				return _known[position];
-			}
-
-			return -1;
+			return _known.ContainsKey(position) ? _known[position] : 0;
 		}
 	}
 }

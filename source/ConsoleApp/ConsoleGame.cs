@@ -128,7 +128,7 @@ namespace ConsoleApp
 			_player = _context.Party.First();
 		}
 
-		private void DrawTile(Position pos, int tileValue)
+		private void DrawTile(Position pos, uint tileValue)
 		{
 			Console.ForegroundColor = ConsoleColor.Gray;
 			Console.SetCursorPosition(pos.X, pos.Y + 4);
@@ -175,7 +175,7 @@ namespace ConsoleApp
 			ResetColor();
 		}
 
-		private char GetTileChar(int tileValue)
+		private char GetTileChar(uint tileValue)
 		{
 			var flags = (TileFlags)tileValue;
 

@@ -4,8 +4,6 @@ using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
-	//NOTHING, BLOCKED and PERIMETER can’t be walked on, all else can (if no entity is standing there)
-
 	public class ClientWrapper : IClientWrapper
 	{
 		private readonly Guid _sessionId;

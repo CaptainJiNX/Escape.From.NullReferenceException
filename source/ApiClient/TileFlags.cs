@@ -2,8 +2,9 @@
 
 namespace ApiClient
 {
+	//NOTHING, BLOCKED and PERIMETER can’t be walked on, all else can (if no entity is standing there)
 	[Flags]
-	public enum TileFlags
+	public enum TileFlags : uint
 	{
 		NOTHING = 0x00000000,
 		BLOCKED = 0x00000001,
@@ -20,6 +21,6 @@ namespace ApiClient
 		PORTCULLIS = 0x00200000,
 		STAIR_DOWN = 0x00400000,
 		STAIR_UP = 0x00800000,
-		LABEL = unchecked((int)0xFF000000)
+		LABEL = 0xFF000000
 	}
 }
