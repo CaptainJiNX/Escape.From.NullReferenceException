@@ -18,6 +18,11 @@ namespace ApiClient
 			_client = new WebClient();
 		}
 
+		public Guid GetSessionId()
+		{
+			return _sessionId;
+		}
+
 		public JObject GetCharTemplate()
 		{
 			return RunCommand("getchartemplate");

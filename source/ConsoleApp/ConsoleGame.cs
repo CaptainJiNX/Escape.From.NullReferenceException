@@ -41,8 +41,12 @@ namespace ConsoleApp
 			{
 				_context.Scan(_player);
 				//Console.Clear();
+				ResetColor();
 
 				DrawMap(_context.GetMap(_player.CurrentMap));
+
+				_player.VisibleItems.ToList().ForEach(DrawItem);
+				_player.VisibleEntities.ToList().ForEach(DrawEntity);
 
 				var messages = _context.Messages.Take(3).Select((m, i) => new {Text = m, Index = i});
 				foreach (var message in messages)
@@ -110,16 +114,6 @@ namespace ConsoleApp
 			{
 				DrawTile(position, map.GetPositionValue(position));
 			}
-
-			foreach (var item in map.Items)
-			{
-				DrawItem(item.Value, _client.GetInfoFor(item.Key));
-			}
-
-			foreach (var item in map.Entities)
-			{
-				DrawEntity(item.Value, _client.GetInfoFor(item.Key));
-			}
 		}
 
 		private void CreatePlayer()
@@ -136,17 +130,17 @@ namespace ConsoleApp
 			ResetColor();
 		}
 
-		private void DrawItem(Position pos, ItemInfo item)
+		private void DrawItem(Item item)
 		{
 			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.SetCursorPosition(pos.X, pos.Y + 4);
+			Console.SetCursorPosition(item.XPos, item.YPos + 4);
 			Console.Write(item.Name[0]);
 			ResetColor();
 		}
 
-		private void DrawEntity(Position pos, ItemInfo item)
+		private void DrawEntity(Item item)
 		{
-			Console.SetCursorPosition(pos.X, pos.Y + 4);
+			Console.SetCursorPosition(item.XPos, item.YPos + 4);
 
 			if (item.Id == _player.Id)
 			{

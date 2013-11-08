@@ -4,12 +4,9 @@ using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
-	public class Map
+	public class Map	
 	{
 		private readonly Dictionary<Position, uint> _known = new Dictionary<Position, uint>();
-
-		private readonly Dictionary<string, Position> _items = new Dictionary<string, Position>();
-		private readonly Dictionary<string, Position> _entities = new Dictionary<string, Position>();
 
 		public Map(string name)
 		{
@@ -23,26 +20,14 @@ namespace ApiClient
 			get { return _known.Keys; }
 		}
 
-		public IEnumerable<KeyValuePair<string, Position>> Items
-		{
-			get { return _items; }
-		}
-
-		public IEnumerable<KeyValuePair<string, Position>> Entities
-		{
-			get { return _entities; }
-		}
-
 		public void UpdateFromScan(JObject scanResult)
 		{
 			UpdateArea(scanResult);
-			UpdateItems(scanResult);
-			UpdateEntities(scanResult);
 		}
 
 		public void UpdateFromMovement(JObject movement)
 		{
-			UpdateFromScan(movement);
+			UpdateArea(movement);
 		}
 
 		private void UpdateArea(JObject scanResult)
@@ -59,30 +44,6 @@ namespace ApiClient
 				{
 					UpdatePosition(new Position(x + bx, y + @by), columns[x].Value<uint>());
 				}
-			}
-		}
-
-		private void UpdateItems(JObject scanResult)
-		{
-			_items.Clear();
-
-			foreach (var item in scanResult["items"])
-			{
-				var xpos = item["x"].Value<int>();
-				var ypos = item["y"].Value<int>();
-				_items.Add(item["_id"].Value<string>(), new Position(xpos, ypos));
-			}
-		}
-
-		private void UpdateEntities(JObject scanResult)
-		{
-			_entities.Clear();
-
-			foreach (var entity in scanResult["entities"])
-			{
-				var xpos = entity["x"].Value<int>();
-				var ypos = entity["y"].Value<int>();
-				_entities.Add(entity["_id"].Value<string>(), new Position(xpos, ypos));
 			}
 		}
 

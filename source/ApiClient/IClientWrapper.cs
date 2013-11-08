@@ -1,9 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System;
+using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
 	public interface IClientWrapper
 	{
+		Guid GetSessionId();
 		JObject GetCharTemplate();
 		JObject GetParty();
 		JObject GetCharacter(string charId);

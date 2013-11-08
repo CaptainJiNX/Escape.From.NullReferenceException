@@ -5,6 +5,9 @@ namespace ApiClient
 {
 	public class Character
 	{
+		private IEnumerable<Item> _visibleItems;
+		private IEnumerable<Item> _visibleEntities;
+
 		public Character(JObject created)
 		{
 			Id = created["_id"].Value<string>();
@@ -80,11 +83,23 @@ namespace ApiClient
 		public int MaxHitPoints { get; private set; }
 		public string Resource { get; private set; }
 
+		public IEnumerable<Item> VisibleItems
+		{
+			get { return _visibleItems ?? new Item[0]; }
+		}
+
+		public IEnumerable<Item> VisibleEntities
+		{
+			get { return _visibleEntities ?? new Item[0]; }
+		}
+
 		public void UpdateFromScan(JObject scanResult)
 		{
-			CurrentMap = scanResult["map"].Value<string>();
-			XPos = scanResult["x"].Value<int>();
-			YPos = scanResult["y"].Value<int>();
+			CurrentMap = scanResult.Value<string>("map");
+			XPos = scanResult.Value<int>("x");
+			YPos = scanResult.Value<int>("y");
+			_visibleItems = scanResult.Values<Item>("items");
+			_visibleEntities = scanResult.Values<Item>("entities");
 		}
 
 		public void UpdateFromMovement(JObject movement)
