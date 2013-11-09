@@ -9,22 +9,20 @@ namespace ConsoleApp
 	{
 		private readonly IClientWrapper _client;
 		private readonly GameContext _context;
-		private Character _player;
+		private string _playerId;
 
 		public ConsoleGame()
 		{
 			_client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
-			_context = new GameContext(_client);
+
+			_context = new GameContext(_client, new BinaryMapStorage());
 		}
 
 		public void RunGame()
 		{
-			DeleteAllCharacters();
-			CreatePlayer();
+			InitPlayer();
 
 			RunGameLoop();
-
-			DeleteAllCharacters();
 
 			Console.WriteLine("Done...");
 			Console.ReadLine();
@@ -38,14 +36,15 @@ namespace ConsoleApp
 
 			while (true)
 			{
-				_context.Scan(_player);
+				_context.Scan(_playerId);
 				//Console.Clear();
 				ResetColor();
 
-				DrawMap(_context.GetMap(_player.CurrentMap));
+				var player = _context.GetPlayer(_playerId);
+				DrawMap(_context.GetMap(player.CurrentMap));
 
-				_player.VisibleItems.ToList().ForEach(DrawItem);
-				_player.VisibleEntities.ToList().ForEach(DrawEntity);
+				player.VisibleItems.ToList().ForEach(DrawItem);
+				player.VisibleEntities.ToList().ForEach(DrawEntity);
 
 				var messages = _context.Messages.Take(3).Select((m, i) => new {Text = m, Index = i});
 				foreach (var message in messages)
@@ -65,7 +64,7 @@ namespace ConsoleApp
 
 				if (direction != Direction.None)
 				{
-					_context.MovePlayer(_player, direction);
+					_context.MovePlayer(_playerId, direction);
 				}
 			}
 
@@ -110,16 +109,16 @@ namespace ConsoleApp
 
 		private void DrawMap(Map map)
 		{
-			foreach (var position in map.AllKnown)
+			foreach (var position in map.AllPositions)
 			{
 				DrawTile(position, map.GetPositionValue(position));
 			}
 		}
 
-		private void CreatePlayer()
+		private void InitPlayer()
 		{
-			_context.AddCharacter("Blahonga", 14, 14, 10, 10, 10);
-			_player = _context.Party.First();
+			_playerId = _context.Party.FirstOrDefault() ?? 
+				_context.CreateNewCharacter("Blahonga", 14, 14, 10, 10, 10);
 		}
 
 		private void DrawTile(Position pos, uint tileValue)
@@ -142,7 +141,7 @@ namespace ConsoleApp
 		{
 			Console.SetCursorPosition(item.XPos, item.YPos + 4);
 
-			if (item.Id == _player.Id)
+			if (item.Id == _playerId)
 			{
 				Console.ForegroundColor = ConsoleColor.Magenta;
 				Console.Write('@');
@@ -219,16 +218,6 @@ namespace ConsoleApp
 				return 'L';
 
 			return '*';
-		}
-
-		private void DeleteAllCharacters()
-		{
-			var party = _client.GetParty();
-
-			foreach (var charId in party["characters"].Values<string>())
-			{
-				Console.WriteLine(_client.DeleteCharacter(charId));
-			}
 		}
 	}
 }

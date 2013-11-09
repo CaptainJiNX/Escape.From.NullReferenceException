@@ -1,12 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using Newtonsoft.Json.Linq;
+﻿using System;
+using System.Collections.Generic;
 
 namespace ApiClient
 {
+	[Serializable]
 	public class Map
 	{
-		private readonly Dictionary<Position, uint> _known = new Dictionary<Position, uint>();
+		private readonly Dictionary<Position, uint> _positions = new Dictionary<Position, uint>();
 
 		public Map(string name)
 		{
@@ -15,46 +15,34 @@ namespace ApiClient
 
 		public string Name { get; private set; }
 
-		public IEnumerable<Position> AllKnown
+		public IEnumerable<Position> AllPositions
 		{
-			get { return _known.Keys; }
+			get { return _positions.Keys; }
 		}
 
-		public void UpdateFromScan(JObject scanResult)
+		public void Update(ScanResult result)
 		{
-			UpdateArea(scanResult);
-		}
+			var area = result.VisibleArea;
 
-		public void UpdateFromMovement(JObject movement)
-		{
-			UpdateArea(movement);
-		}
+			if (area == null) return;
 
-		private void UpdateArea(JObject scanResult)
-		{
-			var rows = scanResult["area"];
-			if (rows == null) return;
-
-			var bx = scanResult.Value<int>("bx");
-			var by = scanResult.Value<int>("by");
-
-			for (int y = 0; y < rows.Count(); y++)
+			for (var y = 0; y < area.Length; y++)
 			{
-				for (int x = 0; x < rows[y].Count(); x++)
+				for (var x = 0; x < area[y].Length; x++)
 				{
-					UpdatePosition(new Position(x + bx, y + by), rows[y][x].Value<uint>());
+					UpdatePosition(new Position(x + result.XOff, y + result.YOff), area[y][x]);
 				}
 			}
 		}
 
 		private void UpdatePosition(Position pos, uint val)
 		{
-			_known[pos] = val;
+			_positions[pos] = val;
 		}
 
 		public uint GetPositionValue(Position position)
 		{
-			return _known.ContainsKey(position) ? _known[position] : 0;
+			return _positions.ContainsKey(position) ? _positions[position] : 0;
 		}
 	}
 }

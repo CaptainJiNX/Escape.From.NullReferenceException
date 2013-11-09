@@ -1,6 +1,9 @@
-﻿namespace ApiClient
+﻿using System;
+
+namespace ApiClient
 {
-	public struct Position
+	[Serializable]
+	public class Position
 	{
 		public Position(int x, int y)
 		{
@@ -8,7 +11,21 @@
 			Y = y;
 		}
 
-		public int X;
-		public int Y;
+		public readonly int X;
+		public readonly int Y;
+
+		public override bool Equals(object obj)
+		{
+			if (ReferenceEquals(null, obj)) return false;
+			if (ReferenceEquals(this, obj)) return true;
+			if (obj.GetType() != this.GetType()) return false;
+			var other = (Position) obj;
+			return X == other.X && Y == other.Y;
+		}
+
+		public override int GetHashCode()
+		{
+			return unchecked((X*397) ^ Y);
+		}
 	}
 }

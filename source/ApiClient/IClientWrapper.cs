@@ -7,7 +7,7 @@ namespace ApiClient
 	{
 		Guid GetSessionId();
 		JObject GetCharTemplate();
-		JObject GetParty();
+		Party GetParty();
 		Character GetCharacter(string charId);
 		JObject DeleteCharacter(string charId);
 		Character CreateCharacter(string name, int str, int con, int dex, int @int, int wis);
@@ -17,9 +17,9 @@ namespace ApiClient
 		JObject Unwield(string itemId, string charId);
 		JObject Equip(string itemId, string charId);
 		JObject Unequip(string itemId, string charId);
-		JObject Move(string charId, Direction direction);
+		ScanResult Move(string charId, Direction direction);
 		JObject Planeshift(string charId, string planeName);
-		JObject Scan(string charId);
+		ScanResult Scan(string charId);
 		ItemInfo GetInfoFor(string id);
 		JObject LevelUp(string charId);
 		JObject LevelDown(string charId);

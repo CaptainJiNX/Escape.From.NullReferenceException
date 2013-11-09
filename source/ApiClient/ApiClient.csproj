@@ -32,6 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="BinaryRage">
+      <HintPath>..\..\packages\BinaryRage.0.1.2\lib\net40\BinaryRage.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\..\packages\Newtonsoft.Json.5.0.8\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
@@ -45,17 +48,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attribute.cs" />
+    <Compile Include="BinaryMapStorage.cs" />
     <Compile Include="Character.cs" />
     <Compile Include="ClientWrapper.cs" />
     <Compile Include="Direction.cs" />
     <Compile Include="GameContext.cs" />
     <Compile Include="IClientWrapper.cs" />
+    <Compile Include="IMapStorage.cs" />
     <Compile Include="Item.cs" />
     <Compile Include="ItemInfo.cs" />
-    <Compile Include="JObjectExtensions.cs" />
     <Compile Include="Map.cs" />
+    <Compile Include="Party.cs" />
     <Compile Include="Position.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ScanResult.cs" />
+    <Compile Include="ScanUpdate.cs" />
     <Compile Include="TileFlags.cs" />
   </ItemGroup>
   <ItemGroup>

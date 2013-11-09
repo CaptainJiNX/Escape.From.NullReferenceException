@@ -1,48 +1,58 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
 	public class Character
 	{
-		private IEnumerable<Item> _visibleItems;
-		private IEnumerable<Item> _visibleEntities;
-
+		#pragma warning disable 649
+		
 		// This is just beacause GetCharacter and CreateCharacter has different property names for id.
 		[JsonProperty("_id")] private string _idFromCreate;
 		[JsonProperty("id")] private string _idFromGet;
+		[JsonProperty("hp")] 
+		private string _hitPoints;
+
+		#pragma warning restore 649
+
+		private IEnumerable<Item> _visibleItems;
+		private IEnumerable<Item> _visibleEntities;
+
 		public string Id { get { return _idFromGet ?? _idFromCreate; } }
 
 		public string Name { get; set; }
 
 		[JsonProperty("exp")]
 		public int Experience { get; set; }
+
 		public int Level { get; set; }
 
 		[JsonProperty("str")]
 		public int Strength { get; set; }
+
 		[JsonProperty("int")]
 		public int Intelligence { get; set; }
+
 		[JsonProperty("wis")]
 		public int Wisdom { get; set; }
+
 		[JsonProperty("dex")]
 		public int Dexterity { get; set; }
+
 		[JsonProperty("con")]
 		public int Constitution { get; set; }
 
 		[JsonProperty("map")]
 		public string CurrentMap { get; set; }
+
 		public string[] Inventory { get; set; }
 
 		[JsonProperty("x")]
 		public int XPos { get; set; }
+
 		[JsonProperty("y")]
 		public int YPos { get; set; }
-
-		[JsonProperty("hp")] 
-		private string _hitPoints;
 
 		public int HitPoints
 		{
@@ -82,7 +92,7 @@ namespace ApiClient
 
 		public IEnumerable<Item> VisibleItems
 		{
-			get { return _visibleItems ?? new Item[0]; }
+			get { return _visibleItems ?? new Item[0] ; }
 		}
 
 		public IEnumerable<Item> VisibleEntities
@@ -90,19 +100,19 @@ namespace ApiClient
 			get { return _visibleEntities ?? new Item[0]; }
 		}
 
-		public void UpdateFromScan(JObject scanResult)
+		public void Update(ScanResult result)
 		{
-			CurrentMap = scanResult.Value<string>("map");
-			XPos = scanResult.Value<int>("x");
-			YPos = scanResult.Value<int>("y");
-			_visibleItems = scanResult.GetIEnumerable<Item>("items");
-			_visibleEntities = scanResult.GetIEnumerable<Item>("entities");
-		}
+			XPos = result.XPos;
+			YPos = result.YPos;
 
-		public void UpdateFromMovement(JObject movement)
-		{
-			UpdateFromScan(movement);
-		}
+			_visibleItems = result.Items;
+			_visibleEntities = result.Entities;
 
+			if (result.Updates != null)
+			{
+				var update = result.Updates.LastOrDefault(x => x.Inventory != null);
+				if (update != null) Inventory = update.Inventory;
+			}
+		}
 	}
 }

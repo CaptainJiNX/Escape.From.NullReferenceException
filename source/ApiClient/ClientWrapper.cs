@@ -28,9 +28,9 @@ namespace ApiClient
 			return RunCommand("getchartemplate");
 		}
 
-		public JObject GetParty()
+		public Party GetParty()
 		{
-			return RunCommand("getparty");
+			return RunCommand("getparty").ToObject<Party>();
 		}
 
 		public Character GetCharacter(string charId)
@@ -78,9 +78,9 @@ namespace ApiClient
 			return RunCommand("unequip", itemId, charId);
 		}
 
-		public JObject Move(string charId, Direction direction)
+		public ScanResult Move(string charId, Direction direction)
 		{
-			return RunCommand("move", charId, direction.ToString().ToLowerInvariant());
+			return RunCommand("move", charId, direction.ToString().ToLowerInvariant()).ToObject<ScanResult>();
 		}
 
 		public JObject Planeshift(string charId, string planeName)
@@ -88,9 +88,9 @@ namespace ApiClient
 			return RunCommand("planeshift", charId, planeName);
 		}
 
-		public JObject Scan(string charId)
+		public ScanResult Scan(string charId)
 		{
-			return RunCommand("scan", charId);
+			return RunCommand("scan", charId).ToObject<ScanResult>();
 		}
 
 		public ItemInfo GetInfoFor(string id)

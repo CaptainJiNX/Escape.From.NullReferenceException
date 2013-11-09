@@ -1,25 +1,46 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
 	public class GameContext
 	{
 		private readonly IClientWrapper _client;
-		private readonly List<Character> _currentParty = new List<Character>();
-		private readonly List<Map> _currentMaps = new List<Map>();
+		private readonly IMapStorage _mapStorage;
+
+		private readonly Dictionary<string, Character> _currentParty = new Dictionary<string, Character>();
+		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
 
-		public GameContext(IClientWrapper client)
+		public GameContext(IClientWrapper client, IMapStorage mapStorage)
 		{
 			_client = client;
+			_mapStorage = mapStorage;
+
+			Initialize();
 		}
 
-		public IEnumerable<Character> Party
+		private void Initialize()
 		{
-			get { return _currentParty; }
+			var party = _client.GetParty();
+
+			if (party.Characters != null)
+			{
+				foreach (var playerId in party.Characters)
+				{
+					_currentParty.Add(playerId, _client.GetCharacter(playerId));
+				}
+			}
+
+			foreach (var map in _mapStorage.GetAll())
+			{
+				_currentMaps.Add(map.Name, map);
+			}
+		}
+
+		public IEnumerable<string> Party
+		{
+			get { return _currentParty.Keys; }
 		}
 
 		public IEnumerable<string> Messages
@@ -27,48 +48,75 @@ namespace ApiClient
 			get { return _messageLog; }
 		}
 
-		public void AddCharacter(string name, int str, int con, int dex, int @int, int wis)
+		public string CreateNewCharacter(string name, int str, int con, int dex, int @int, int wis)
 		{
 			var character = _client.CreateCharacter(name, str, con, dex, @int, wis);
-			//ThrowIfError(created);
+			if (character.Error != null)
+			{
+				AddMessage(character.Error);
+				return null;
+			}
 
-			//var character = new Character(created);
-			_currentParty.Add(character);
+			_currentParty.Add(character.Id, character);
+			return character.Id;
 		}
 
-		public void Scan(Character player)
+		public void Scan(string playerId)
 		{
-			var scanResult = _client.Scan(player.Id);
-			if (HasError(scanResult)) return;
+			Update(playerId, _client.Scan(playerId));
+		}
 
-			player.UpdateFromScan(scanResult);
+		public void MovePlayer(string playerId, Direction dir)
+		{
+			Update(playerId, _client.Move(playerId, dir));
+		}
 
-			var map = GetOrAddMap(player.CurrentMap);
-			map.UpdateFromScan(scanResult);
+		private void Update(string playerId, ScanResult scanResult)
+		{
+			if (scanResult.Error != null)
+			{
+				AddMessage(scanResult.Error);
+				return;
+			}
+
+			UpdatePlayer(playerId, scanResult);
+
+			var map = GetOrAddMap(scanResult.Map);
+			map.Update(scanResult);
+			_mapStorage.Save(map);
 
 			AddUpdateMessages(scanResult);
 		}
 
-		public void MovePlayer(Character player, Direction dir)
+		public Character GetPlayer(string playerId)
 		{
-			var movement = _client.Move(player.Id, dir);
-			if (HasError(movement)) return;
-
-			player.UpdateFromMovement(movement);
-
-			var map = GetOrAddMap(player.CurrentMap);
-			map.UpdateFromMovement(movement);
-
-			AddUpdateMessages(movement);
+			return _currentParty[playerId];
 		}
 
-		private void AddUpdateMessages(JObject scanResult)
+		private void UpdatePlayer(string playerId, ScanResult result)
 		{
-			var updates = scanResult["updates"];
-			if (updates == null) return;
-			foreach (var update in updates)
+			if (result.Updates != null)
 			{
-				AddMessage(update.Value<string>("message"));
+				var update = result.Updates
+				                       .Where(x => x.Character != null)
+				                       .LastOrDefault(x => x.Character.Id == playerId);
+
+				if (update != null)
+				{
+					_currentParty[playerId] = update.Character;
+				}
+			}
+
+			var player = _currentParty[playerId];
+			player.Update(result);
+		}
+
+		private void AddUpdateMessages(ScanResult result)
+		{
+			if (result.Updates == null) return;
+			foreach (var update in result.Updates.Where(x => x.Message != null))
+			{
+				AddMessage(update.Message);
 			}
 		}
 
@@ -82,7 +130,8 @@ namespace ApiClient
 
 		public Map GetMap(string mapName)
 		{
-			return _currentMaps.FirstOrDefault(x => x.Name == mapName);
+			Map map;
+			return _currentMaps.TryGetValue(mapName, out map) ? map : null;
 		}
 
 		private Map GetOrAddMap(string mapName)
@@ -92,29 +141,10 @@ namespace ApiClient
 			if (map == null)
 			{
 				map = new Map(mapName);
-				_currentMaps.Add(map);
+				_currentMaps.Add(mapName, map);
 			}
 
 			return map;
-		}
-
-		private static void ThrowIfError(JObject jObject)
-		{
-			if (jObject["error"] != null)
-			{
-				throw new ApplicationException(jObject["error"].ToString());
-			}
-		}
-
-		private bool HasError(JObject jObject)
-		{
-			if (jObject["error"] == null)
-			{
-				return false;
-			}
-
-			AddMessage(jObject["error"].ToString());
-			return true;
 		}
 	}
 }
