@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ApiClient;
@@ -34,17 +35,28 @@ namespace ConsoleApp
 			Console.Clear();
 			Console.CursorVisible = false;
 
+			var player = _context.GetPlayer(_playerId);
+			var map = _context.GetMap(player.CurrentMap);
+			DrawMap(map, map.AllPositions);
+
+			var previousItemsAndEntities = Enumerable.Empty<Position>();
+
 			while (true)
 			{
 				_context.Scan(_playerId);
-				//Console.Clear();
 				ResetColor();
 
-				var player = _context.GetPlayer(_playerId);
-				DrawMap(_context.GetMap(player.CurrentMap));
+				player = _context.GetPlayer(_playerId);
+				map = _context.GetMap(player.CurrentMap);
+				DrawMap(map, player.VisibleArea.Concat(previousItemsAndEntities));
+
+				var items = player.VisibleItems.ToList();
+				var entities = player.VisibleEntities.ToList();
 
 				player.VisibleItems.ToList().ForEach(DrawItem);
 				player.VisibleEntities.ToList().ForEach(DrawEntity);
+
+				previousItemsAndEntities = items.Concat(entities).Select(x => new Position(x.XPos, x.YPos));
 
 				var messages = _context.Messages.Take(3).Select((m, i) => new {Text = m, Index = i});
 				foreach (var message in messages)
@@ -107,9 +119,9 @@ namespace ConsoleApp
 			Console.BackgroundColor = ConsoleColor.Black;
 		}
 
-		private void DrawMap(Map map)
+		private void DrawMap(Map map, IEnumerable<Position> positions)
 		{
-			foreach (var position in map.AllPositions)
+			foreach (var position in positions)
 			{
 				DrawTile(position, map.GetPositionValue(position));
 			}

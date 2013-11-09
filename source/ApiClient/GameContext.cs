@@ -83,7 +83,11 @@ namespace ApiClient
 
 			var map = GetOrAddMap(scanResult.Map);
 			map.Update(scanResult);
-			_mapStorage.Save(map);
+
+			if (map.HasChanges())
+			{
+				_mapStorage.Save(map);
+			}
 
 			AddUpdateMessages(scanResult);
 		}

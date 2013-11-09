@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace ApiClient
 {
@@ -20,5 +22,18 @@ namespace ApiClient
 		public int YPos { get; set; }
 		public ScanUpdate[] Updates { get; set; }
 		public string Error { get; set; }
+
+		public IEnumerable<Tuple<Position, uint>> ConvertAreaToPositions()
+		{
+			if (VisibleArea == null) yield break;
+
+			for (var y = 0; y < VisibleArea.Length; y++)
+			{
+				for (var x = 0; x < VisibleArea[y].Length; x++)
+				{
+					yield return new Tuple<Position, uint>(new Position(x + XOff, y + YOff), VisibleArea[y][x]);
+				}
+			}
+		}
 	}
 }

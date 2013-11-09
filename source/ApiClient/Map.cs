@@ -7,6 +7,7 @@ namespace ApiClient
 	public class Map
 	{
 		private readonly Dictionary<Position, uint> _positions = new Dictionary<Position, uint>();
+		private bool _hasChanges;
 
 		public Map(string name)
 		{
@@ -22,27 +23,32 @@ namespace ApiClient
 
 		public void Update(ScanResult result)
 		{
-			var area = result.VisibleArea;
-
-			if (area == null) return;
-
-			for (var y = 0; y < area.Length; y++)
+			foreach (var tuple in result.ConvertAreaToPositions())
 			{
-				for (var x = 0; x < area[y].Length; x++)
-				{
-					UpdatePosition(new Position(x + result.XOff, y + result.YOff), area[y][x]);
-				}
+				UpdatePosition(tuple.Item1, tuple.Item2);
 			}
 		}
 
 		private void UpdatePosition(Position pos, uint val)
 		{
+			if (_positions.ContainsKey(pos) && GetPositionValue(pos) == val) return;
+			_hasChanges = true;
 			_positions[pos] = val;
 		}
 
 		public uint GetPositionValue(Position position)
 		{
 			return _positions.ContainsKey(position) ? _positions[position] : 0;
+		}
+
+		public bool HasChanges()
+		{
+			return _hasChanges;
+		}
+
+		public void ClearChanges()
+		{
+			_hasChanges = false;
 		}
 	}
 }

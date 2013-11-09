@@ -46,6 +46,7 @@ namespace ApiClient
 		{
 			AddMapName(map.Name);
 			DB<Map>.Insert(map.Name, map, MapsLocation);
+			map.ClearChanges();
 		}
 
 		private HashSet<string> LoadMapNames()

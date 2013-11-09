@@ -18,6 +18,7 @@ namespace ApiClient
 
 		private IEnumerable<Item> _visibleItems;
 		private IEnumerable<Item> _visibleEntities;
+		private IEnumerable<Position> _visibleArea;
 
 		public string Id { get { return _idFromGet ?? _idFromCreate; } }
 
@@ -100,6 +101,11 @@ namespace ApiClient
 			get { return _visibleEntities ?? new Item[0]; }
 		}
 
+		public IEnumerable<Position> VisibleArea
+		{
+			get { return _visibleArea ?? new Position[0]; }
+		}
+
 		public void Update(ScanResult result)
 		{
 			XPos = result.XPos;
@@ -107,6 +113,7 @@ namespace ApiClient
 
 			_visibleItems = result.Items;
 			_visibleEntities = result.Entities;
+			_visibleArea = result.ConvertAreaToPositions().Select(x => x.Item1);
 
 			if (result.Updates != null)
 			{
