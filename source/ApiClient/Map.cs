@@ -27,11 +27,14 @@ namespace ApiClient
 			{
 				UpdatePosition(tuple.Item1, tuple.Item2);
 			}
+
+			UpdatePosition(result.StairsDown, (uint) TileFlags.STAIR_DOWN);
+			UpdatePosition(result.StairsUp, (uint) TileFlags.STAIR_UP);
 		}
 
 		private void UpdatePosition(Position pos, uint val)
 		{
-			if (_positions.ContainsKey(pos) && GetPositionValue(pos) == val) return;
+			if (pos == null || (_positions.ContainsKey(pos) && GetPositionValue(pos) == val)) return;
 			_hasChanges = true;
 			_positions[pos] = val;
 		}

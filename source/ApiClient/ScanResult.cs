@@ -16,6 +16,7 @@ namespace ApiClient
 		public Item[] Items { get; set; }
 		public Item[] Entities { get; set; }
 		public Position StairsDown { get; set; }
+		public Position StairsUp { get; set; }
 		[JsonProperty("x")]
 		public int XPos { get; set; }
 		[JsonProperty("y")]

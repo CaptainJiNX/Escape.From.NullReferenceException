@@ -121,7 +121,7 @@ namespace ConsoleApp
 
 		private void DrawMap(Map map, IEnumerable<Position> positions)
 		{
-			foreach (var position in positions)
+			foreach (var position in positions.OrderBy(x => x.Y).ThenBy(x => x.X))
 			{
 				DrawTile(position, map.GetPositionValue(position));
 			}
@@ -135,9 +135,11 @@ namespace ConsoleApp
 
 		private void DrawTile(Position pos, uint tileValue)
 		{
-			Console.ForegroundColor = ConsoleColor.Gray;
+			var tile = GetTile(tileValue);
+			Console.ForegroundColor = tile.ForeColor;
+			Console.BackgroundColor = tile.BackColor;
 			Console.SetCursorPosition(pos.X, pos.Y + 4);
-			Console.Write(GetTileChar(tileValue));
+			Console.Write(tile.Character);
 			ResetColor();
 		}
 
@@ -180,56 +182,54 @@ namespace ConsoleApp
 			ResetColor();
 		}
 
-		private char GetTileChar(uint tileValue)
+		private class Tile
+		{
+			public Tile(char character,
+ 				ConsoleColor foreColor = ConsoleColor.Gray,
+				ConsoleColor backColor = ConsoleColor.Black)
+			{
+				Character = character;
+				ForeColor = foreColor;
+				BackColor = backColor;
+			}
+
+			public char Character { get; private set; }
+			public ConsoleColor ForeColor { get; private set; }
+			public ConsoleColor BackColor { get; private set; }
+		}
+
+		private Tile GetTile(uint tileValue)
 		{
 			var flags = (TileFlags)tileValue;
 
+			//if ((flags & TileFlags.LABEL) > 0)
+			//	return new Tile('L');
+			//if ((flags & TileFlags.ROOM_ID) > 0)
+			//	return new Tile('I');
+
 			if (flags == TileFlags.NOTHING)
-				return '#';
-
-			if ((flags & TileFlags.BLOCKED) > 0)
-				return '¤';
-
-			if ((flags & TileFlags.PERIMETER) > 0)
-				return '#';
-
-			if ((flags & TileFlags.DOOR1) > 0)
-				return '1';
-			if ((flags & TileFlags.DOOR2) > 0)
-				return '2';
-			if ((flags & TileFlags.DOOR3) > 0)
-				return '3';
-			if ((flags & TileFlags.DOOR4) > 0)
-				return '4';
-
-			if ((flags & TileFlags.ARCH) > 0)
-				return '~';
-
-			if ((flags & TileFlags.PORTCULLIS) > 0)
-				return '€';
-
-			if ((flags & TileFlags.CORRIDOR) > 0)
-				return ' ';
-
-			if ((flags & TileFlags.ROOM) > 0)
-				return ' ';
-
-			if ((flags & TileFlags.ENTRANCE) > 0)
-				return '=';
-
-			if ((flags & TileFlags.STAIR_DOWN) > 0)
-				return '<';
-
+				return new Tile('#', ConsoleColor.DarkGray);
 			if ((flags & TileFlags.STAIR_UP) > 0)
-				return '>';
-
-			if ((flags & TileFlags.ROOM_ID) > 0)
-				return 'I';
-
-			if ((flags & TileFlags.LABEL) > 0)
-				return 'L';
-
-			return '*';
+				return new Tile('>', ConsoleColor.Cyan);
+			if ((flags & TileFlags.STAIR_DOWN) > 0)
+				return new Tile('<', ConsoleColor.Cyan);
+			if ((flags & TileFlags.PORTCULLIS) > 0)
+				return new Tile('€');
+			if ((flags & (TileFlags.DOOR1 | TileFlags.DOOR2 | TileFlags.DOOR3 | TileFlags.DOOR4)) > 0)
+				return new Tile('+', ConsoleColor.White);
+			if ((flags & TileFlags.ARCH) > 0)
+				return new Tile('~');
+			if ((flags & TileFlags.ENTRANCE) > 0)
+				return new Tile('=');
+			if ((flags & TileFlags.PERIMETER) > 0)
+				return new Tile('#', ConsoleColor.White);
+			if ((flags & TileFlags.CORRIDOR) > 0)
+				return new Tile(' ');
+			if ((flags & TileFlags.ROOM) > 0)
+				return new Tile(' ');
+			if ((flags & TileFlags.BLOCKED) > 0)
+				return new Tile('¤');
+			return new Tile('_');
 		}
 	}
 }
