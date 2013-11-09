@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
-	public class Map	
+	public class Map
 	{
 		private readonly Dictionary<Position, uint> _known = new Dictionary<Position, uint>();
 
@@ -32,17 +32,17 @@ namespace ApiClient
 
 		private void UpdateArea(JObject scanResult)
 		{
-			var bx = scanResult["bx"].Value<int>();
-			var by = scanResult["by"].Value<int>();
+			var rows = scanResult["area"];
+			if (rows == null) return;
 
-			var rows = scanResult["area"].ToArray();
+			var bx = scanResult.Value<int>("bx");
+			var by = scanResult.Value<int>("by");
 
-			for (int y = 0; y < rows.Length; y++)
+			for (int y = 0; y < rows.Count(); y++)
 			{
-				var columns = rows[y].ToArray();
-				for (int x = 0; x < columns.Length; x++)
+				for (int x = 0; x < rows[y].Count(); x++)
 				{
-					UpdatePosition(new Position(x + bx, y + @by), columns[x].Value<uint>());
+					UpdatePosition(new Position(x + bx, y + by), rows[y][x].Value<uint>());
 				}
 			}
 		}

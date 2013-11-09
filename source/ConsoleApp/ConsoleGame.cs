@@ -19,10 +19,6 @@ namespace ConsoleApp
 
 		public void RunGame()
 		{
-			ResetColor();
-			Console.Clear();
-			Console.CursorVisible = false;
-
 			DeleteAllCharacters();
 			CreatePlayer();
 
@@ -30,13 +26,16 @@ namespace ConsoleApp
 
 			DeleteAllCharacters();
 
-			Console.CursorVisible = true;
 			Console.WriteLine("Done...");
 			Console.ReadLine();
 		}
 
 		private void RunGameLoop()
 		{
+			ResetColor();
+			Console.Clear();
+			Console.CursorVisible = false;
+
 			while (true)
 			{
 				_context.Scan(_player);
@@ -69,6 +68,10 @@ namespace ConsoleApp
 					_context.MovePlayer(_player, direction);
 				}
 			}
+
+			Console.ResetColor();
+			Console.Clear();
+			Console.CursorVisible = true;
 		}
 
 		private static Direction GetPlayerDirection(ConsoleKey key)
@@ -107,9 +110,6 @@ namespace ConsoleApp
 
 		private void DrawMap(Map map)
 		{
-			ResetColor();
-			// Console.Clear();
-
 			foreach (var position in map.AllKnown)
 			{
 				DrawTile(position, map.GetPositionValue(position));

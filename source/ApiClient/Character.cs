@@ -98,8 +98,8 @@ namespace ApiClient
 			CurrentMap = scanResult.Value<string>("map");
 			XPos = scanResult.Value<int>("x");
 			YPos = scanResult.Value<int>("y");
-			_visibleItems = scanResult.Values<Item>("items");
-			_visibleEntities = scanResult.Values<Item>("entities");
+			_visibleItems = scanResult.GetIEnumerable<Item>("items");
+			_visibleEntities = scanResult.GetIEnumerable<Item>("entities");
 		}
 
 		public void UpdateFromMovement(JObject movement)
