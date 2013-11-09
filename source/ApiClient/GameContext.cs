@@ -29,10 +29,10 @@ namespace ApiClient
 
 		public void AddCharacter(string name, int str, int con, int dex, int @int, int wis)
 		{
-			var created = _client.CreateCharacter(name, str, con, dex, @int, wis);
-			ThrowIfError(created);
+			var character = _client.CreateCharacter(name, str, con, dex, @int, wis);
+			//ThrowIfError(created);
 
-			var character = new Character(created);
+			//var character = new Character(created);
 			_currentParty.Add(character);
 		}
 

@@ -8,9 +8,9 @@ namespace ApiClient
 		Guid GetSessionId();
 		JObject GetCharTemplate();
 		JObject GetParty();
-		JObject GetCharacter(string charId);
+		Character GetCharacter(string charId);
 		JObject DeleteCharacter(string charId);
-		JObject CreateCharacter(string name, int str, int con, int dex, int @int, int wis);
+		Character CreateCharacter(string name, int str, int con, int dex, int @int, int wis);
 		JObject AllocatePoints(Attribute attr, string charId);
 		JObject Quaff(string itemId, string charId);
 		JObject Wield(string itemId, string charId);

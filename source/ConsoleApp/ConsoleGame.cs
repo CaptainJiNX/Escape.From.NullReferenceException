@@ -158,7 +158,7 @@ namespace ConsoleApp
 				{
 					var character =_client.GetCharacter(item.Id);
 
-					Console.ForegroundColor = character["error"] != null ?
+					Console.ForegroundColor = character.Error != null ?
 						ConsoleColor.Red : 
 						ConsoleColor.Green;
 

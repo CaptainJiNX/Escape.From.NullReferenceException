@@ -33,9 +33,9 @@ namespace ApiClient
 			return RunCommand("getparty");
 		}
 
-		public JObject GetCharacter(string charId)
+		public Character GetCharacter(string charId)
 		{
-			return RunCommand("getcharacter", charId);
+			return RunCommand("getcharacter", charId).ToObject<Character>();
 		}
 
 		public JObject DeleteCharacter(string charId)
@@ -43,9 +43,9 @@ namespace ApiClient
 			return RunCommand("deletecharacter", charId);
 		}
 
-		public JObject CreateCharacter(string name, int str, int con, int dex, int @int, int wis)
+		public Character CreateCharacter(string name, int str, int con, int dex, int @int, int wis)
 		{
-			return RunCommand("createcharacter", string.Format("name:{0},str:{1},con:{2},dex:{3},int:{4},wis:{5}", name, str, con, dex, @int, wis));
+			return RunCommand("createcharacter", string.Format("name:{0},str:{1},con:{2},dex:{3},int:{4},wis:{5}", name, str, con, dex, @int, wis)).ToObject<Character>();
 		}
 
 		public JObject AllocatePoints(Attribute attr, string charId)
