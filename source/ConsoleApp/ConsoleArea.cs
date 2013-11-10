@@ -115,7 +115,7 @@ namespace ConsoleApp
 			Height = height;
 		}
 
-		public void CenterAt(int x, int y)
+		public void CenterOffset(int x, int y)
 		{
 			if (!_allChars.Any()) return;
 
@@ -239,7 +239,6 @@ namespace ConsoleApp
 			return GetCharInfo(x, y);
 		}
 
-
 		private IEnumerable<Console2.CharInfo> GetBufferInternal()
 		{
 			for (int y = _offsetY; y < _offsetY + Height; y++)
@@ -286,15 +285,45 @@ namespace ConsoleApp
 			}
 		}
 
+		public void Write(char value, int x, int y)
+		{
+			Write(value, x, y, _defaultForeground, _defaultBackground);
+		}
+
+		public void Write(char value, int x, int y, ConsoleColor foregroundColor)
+		{
+			Write(value, x, y, foregroundColor, _defaultBackground);
+		}
+
+		public void Write(char value, int x, int y, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
+		{
+			SetCharInfo(new Console2.CharInfo(Console2.Encoding.GetBytes(new[] {value})[0], foregroundColor, backgroundColor), x, y);
+		}
+
+		public void Write(byte value, int x, int y)
+		{
+			Write(value, x, y, _defaultForeground, _defaultBackground);
+		}
+
+		public void Write(byte value, int x, int y, ConsoleColor foregroundColor)
+		{
+			Write(value, x, y, foregroundColor, _defaultBackground);
+		}
+
+		public void Write(byte value, int x, int y, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
+		{
+			SetCharInfo(new Console2.CharInfo(value, foregroundColor, backgroundColor), x, y);
+		}
+
 		public void Clear()
 		{
 			_allChars.Clear();
 		}
 
-		public void TopLeftAt(int x, int y)
+		public void SetOffset(int x, int y)
 		{
-			_offsetX = Math.Max(MinX, Math.Min(MaxX, x));
-			_offsetY = Math.Max(MinY, Math.Min(MaxY, y));
+			_offsetX = x - BorderSize;
+			_offsetY = y - BorderSize;
 		}
 	}
 }

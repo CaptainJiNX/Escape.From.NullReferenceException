@@ -11,12 +11,13 @@ namespace ConsoleApp
 		private readonly IClientWrapper _client;
 		private readonly GameContext _context;
 		private string _playerId;
+		private readonly Console2 _console2; 
 
 		public ConsoleGame()
 		{
 			_client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
-
 			_context = new GameContext(_client, new BinaryMapStorage());
+			_console2 = new Console2(100, 30, ConsoleColor.DarkRed);
 		}
 
 		public void RunGame()
@@ -29,41 +30,85 @@ namespace ConsoleApp
 			Console.ReadLine();
 		}
 
+		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
+
+		private ConsoleArea CreateMapArea(Map map)
+		{
+			var area = new ConsoleArea(60, 25);
+			area.SetBorderStyle(ConsoleArea.BorderStyle.Double);
+			area.SetBorderBackground(ConsoleColor.Black);
+			area.SetBorderForeground(ConsoleColor.White);
+			area.SetTitle(map.Name);
+
+			FillArea(map, area, map.AllPositions);
+
+			return area;
+		}
+
+		private ConsoleArea CreateMessageArea()
+		{
+			var area = new ConsoleArea(100, 5);
+			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
+			area.SetBorderBackground(ConsoleColor.DarkBlue);
+			area.SetBorderForeground(ConsoleColor.Cyan);
+			area.SetDefaultBackground(ConsoleColor.DarkBlue);
+			area.SetDefaultForeground(ConsoleColor.Cyan);
+			area.SetTitle(" Messages ");
+			return area;
+		}
+
+		private void FillArea(Map map, ConsoleArea area, IEnumerable<Position> positions)
+		{
+			foreach (var position in positions)
+			{
+				var tile = GetTile(map.GetPositionValue(position));
+				area.Write(tile.Character, position.X, position.Y, tile.ForeColor, tile.BackColor);
+			}
+		}
+
 		private void RunGameLoop()
 		{
-			ResetColor();
-			Console.Clear();
-			Console.CursorVisible = false;
-
-			var player = _context.GetPlayer(_playerId);
-			var map = _context.GetMap(player.CurrentMap);
-			DrawMap(map, map.AllPositions);
-
 			var previousItemsAndEntities = Enumerable.Empty<Position>();
+			var messageArea = CreateMessageArea();
 
 			while (true)
 			{
 				_context.Scan(_playerId);
-				ResetColor();
 
-				player = _context.GetPlayer(_playerId);
-				map = _context.GetMap(player.CurrentMap);
-				DrawMap(map, player.VisibleArea.Concat(previousItemsAndEntities));
+				var player = _context.GetPlayer(_playerId);
+				var map = _context.GetMap(player.CurrentMap);
+				
+				if (!_maps.ContainsKey(map.Name))
+				{
+					_maps[map.Name] = CreateMapArea(map);
+				}
+				else
+				{
+					FillArea(map, _maps[map.Name], player.VisibleArea.Concat(previousItemsAndEntities));
+				}
+
+				var mapArea = _maps[map.Name];
 
 				var items = player.VisibleItems.ToList();
 				var entities = player.VisibleEntities.ToList();
 
-				player.VisibleItems.ToList().ForEach(DrawItem);
-				player.VisibleEntities.ToList().ForEach(DrawEntity);
+				player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
+				player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
 
 				previousItemsAndEntities = items.Concat(entities).Select(x => new Position(x.XPos, x.YPos));
 
-				var messages = _context.Messages.Take(3).Select((m, i) => new {Text = m, Index = i});
+				messageArea.Clear();
+				var messages = _context.Messages.Take(5).Select((m, i) => new {Text = m, Index = i});
 				foreach (var message in messages)
 				{
-					Console.SetCursorPosition(0, Console.WindowTop + message.Index);
-					Console.Write(message.Text);
+					messageArea.Write(message.Text, 0, message.Index);
 				}
+
+				messageArea.SetOffset(0, 0);
+				mapArea.CenterOffset(player.XPos, player.YPos);
+
+				_console2.DrawArea(mapArea, 0, 0);
+				_console2.DrawArea(messageArea, 0, mapArea.Height);
 
 				var key = Console.ReadKey(true);
 				
@@ -113,73 +158,40 @@ namespace ConsoleApp
 			}
 		}
 
-		private void ResetColor()
-		{
-			Console.ResetColor();
-			Console.BackgroundColor = ConsoleColor.Black;
-		}
-
-		private void DrawMap(Map map, IEnumerable<Position> positions)
-		{
-			foreach (var position in positions.OrderBy(x => x.Y).ThenBy(x => x.X))
-			{
-				DrawTile(position, map.GetPositionValue(position));
-			}
-		}
-
 		private void InitPlayer()
 		{
 			_playerId = _context.Party.FirstOrDefault() ?? 
 				_context.CreateNewCharacter("Blahonga", 14, 14, 10, 10, 10);
 		}
 
-		private void DrawTile(Position pos, uint tileValue)
+		private void DrawItem(Item item, ConsoleArea area)
 		{
-			var tile = GetTile(tileValue);
-			Console.ForegroundColor = tile.ForeColor;
-			Console.BackgroundColor = tile.BackColor;
-			Console.SetCursorPosition(pos.X, pos.Y + 4);
-			Console.Write(tile.Character);
-			ResetColor();
+			area.Write(item.Name[0], item.XPos, item.YPos, ConsoleColor.Yellow);
 		}
 
-		private void DrawItem(Item item)
+		private void DrawEntity(Item item, ConsoleArea area)
 		{
-			Console.ForegroundColor = ConsoleColor.Yellow;
-			Console.SetCursorPosition(item.XPos, item.YPos + 4);
-			Console.Write(item.Name[0]);
-			ResetColor();
-		}
-
-		private void DrawEntity(Item item)
-		{
-			Console.SetCursorPosition(item.XPos, item.YPos + 4);
-
 			if (item.Id == _playerId)
 			{
-				Console.ForegroundColor = ConsoleColor.Magenta;
-				Console.Write('@');
+				area.Write('@', item.XPos, item.YPos, ConsoleColor.Magenta);
 			}
 			else
 			{
 				if (item.Type == "monster")
 				{
-					Console.ForegroundColor = ConsoleColor.Red;
-					Console.Write(item.Name[0]);
+					area.Write(item.Name[0], item.XPos, item.YPos, ConsoleColor.Red);
 				}
 				else if (item.Type == "character")
 				{
 					var character =_client.GetCharacter(item.Id);
 
-					Console.ForegroundColor = character.Error != null ?
+					var color = character.Error != null ?
 						ConsoleColor.Red : 
 						ConsoleColor.Green;
 
-					Console.Write('@');
+					area.Write('@', item.XPos, item.YPos, color);
 				}
 			}
-
-			ResetColor();
 		}
 
 		private class Tile
