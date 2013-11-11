@@ -14,12 +14,14 @@ namespace ConsoleApp
 		private readonly GameContext _context;
 		private string _playerId;
 		private readonly Console2 _console2;
+		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
+		private string _debugString = string.Empty;
 
 		public ConsoleGame()
 		{
 			_client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
 			_context = new GameContext(_client, new BinaryMapStorage());
-			_console2 = new Console2(100, 35, ConsoleColor.DarkRed);
+			_console2 = new Console2(100, 36, ConsoleColor.DarkRed);
 		}
 
 		public void RunGame()
@@ -31,8 +33,6 @@ namespace ConsoleApp
 			Console.WriteLine("Done...");
 			Console.ReadLine();
 		}
-
-		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
 
 		private ConsoleArea CreateMapArea(Map map)
 		{
@@ -103,6 +103,14 @@ namespace ConsoleApp
 			return area;
 		}
 
+		private ConsoleArea CreateDebugArea()
+		{
+			var area = new ConsoleArea(100, 1);
+			area.SetDefaultBackground(ConsoleColor.Black);
+			area.SetDefaultForeground(ConsoleColor.White);
+			return area;
+		}
+
 		private ConsoleKeyInfo CreateMessagePopup(string title, string[] messages)
 		{
 			var max = Math.Max(messages.Max(x => x.Length), title.Length);
@@ -139,9 +147,11 @@ namespace ConsoleApp
 		{
 			var previousItemsAndEntities = Enumerable.Empty<Position>();
 			var messageArea = CreateMessageArea();
+			var debugArea = CreateDebugArea();
 
 			while (true)
 			{
+				_debugString = string.Empty;
 				_context.Scan(_playerId);
 
 				var player = _context.GetPlayer(_playerId);
@@ -164,6 +174,8 @@ namespace ConsoleApp
 				player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
 				player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
 
+				_debugString = string.Format("Current tile: {0}", map.GetPositionValue(new Position(player.XPos, player.YPos)));
+
 				previousItemsAndEntities = items.Concat(entities).Select(x => new Position(x.XPos, x.YPos));
 
 				mapArea.SetTitle(GetMapAreaTitle(player, map));
@@ -181,6 +193,10 @@ namespace ConsoleApp
 				_console2.DrawArea(mapArea, 0, 0);
 				_console2.DrawArea(messageArea, 0, mapArea.Height);
 				_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
+
+				debugArea.Clear();
+				debugArea.Write(_debugString, 0, 0);
+				_console2.DrawArea(debugArea, 0, (short) (mapArea.Height + messageArea.Height));
 
 				var key = Console.ReadKey(true);
 
