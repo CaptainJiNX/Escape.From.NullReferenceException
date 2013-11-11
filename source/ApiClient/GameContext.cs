@@ -124,7 +124,7 @@ namespace ApiClient
 			}
 		}
 
-		private void AddMessage(string message)
+		public void AddMessage(string message)
 		{
 			if (!string.IsNullOrEmpty(message) && _messageLog.FirstOrDefault() != message)
 			{

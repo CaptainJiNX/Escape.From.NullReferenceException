@@ -31,6 +31,8 @@ namespace ConsoleApp
 		}
 
 		public static Encoding Encoding { get { return _encoding; } }
+		public short Width { get { return _width; } }
+		public short Height { get { return _height; } }
 
 		private static void InitConsole(int width, int height)
 		{
