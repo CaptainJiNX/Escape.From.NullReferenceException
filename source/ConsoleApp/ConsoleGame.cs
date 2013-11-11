@@ -15,7 +15,6 @@ namespace ConsoleApp
 		private string _playerId;
 		private readonly Console2 _console2;
 		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
-		private string _debugString = string.Empty;
 
 		public ConsoleGame()
 		{
@@ -151,7 +150,6 @@ namespace ConsoleApp
 
 			while (true)
 			{
-				_debugString = string.Empty;
 				_context.Scan(_playerId);
 
 				var player = _context.GetPlayer(_playerId);
@@ -174,8 +172,6 @@ namespace ConsoleApp
 				player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
 				player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
 
-				_debugString = string.Format("Current tile: {0}", map.GetPositionValue(new Position(player.XPos, player.YPos)));
-
 				previousItemsAndEntities = items.Concat(entities).Select(x => new Position(x.XPos, x.YPos));
 
 				mapArea.SetTitle(GetMapAreaTitle(player, map));
@@ -195,7 +191,7 @@ namespace ConsoleApp
 				_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
 
 				debugArea.Clear();
-				debugArea.Write(_debugString, 0, 0);
+				debugArea.Write(GetDebugInfo(player, map), 0, 0);
 				_console2.DrawArea(debugArea, 0, (short) (mapArea.Height + messageArea.Height));
 
 				var key = Console.ReadKey(true);
@@ -283,6 +279,24 @@ namespace ConsoleApp
 			Console.ResetColor();
 			Console.Clear();
 			Console.CursorVisible = true;
+		}
+
+		private string GetDebugInfo(Character player, Map map)
+		{
+			var positionValue = (TileFlags)map.GetPositionValue(new Position(player.XPos, player.YPos));
+			var debug = string.Format("Current: {0}", positionValue);
+
+			foreach (TileFlags flag in Enum.GetValues(typeof(TileFlags)))
+			{
+				var tileFlags = positionValue & flag;
+
+				if (tileFlags > 0 && tileFlags != flag)
+				{
+					debug += string.Format(" | {0}:{1}", flag, tileFlags);
+				}
+			}
+
+			return debug;
 		}
 
 		private string GetMapAreaTitle(Character player, Map map)
