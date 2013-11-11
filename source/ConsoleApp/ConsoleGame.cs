@@ -83,7 +83,7 @@ namespace ConsoleApp
 
 			for (int i = 0; i < player.Inventory.Length; i++)
 			{
-				area.Write(string.Format("{0}: {1}", i+1, _client.GetInfoFor(player.Inventory[i]).Name), 1, 17 + i);
+				area.Write(string.Format("{0}: {1}", i, _client.GetInfoFor(player.Inventory[i]).Name), 1, 17 + i);
 			}
 
 			area.SetOffset(0, 0);
@@ -160,11 +160,13 @@ namespace ConsoleApp
 
 				var items = player.VisibleItems.ToList();
 				var entities = player.VisibleEntities.ToList();
-
+				
 				player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
 				player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
 
 				previousItemsAndEntities = items.Concat(entities).Select(x => new Position(x.XPos, x.YPos));
+
+				mapArea.SetTitle(GetMapAreaTitle(player, map));
 
 				messageArea.Clear();
 				var messages = _context.Messages.Take(5).Select((m, i) => new { Text = m, Index = i });
@@ -265,6 +267,27 @@ namespace ConsoleApp
 			Console.ResetColor();
 			Console.Clear();
 			Console.CursorVisible = true;
+		}
+
+		private string GetMapAreaTitle(Character player, Map map)
+		{
+			var activeTile = map.GetPositionValue(new Position(player.XPos, player.YPos));
+			
+			var item = player.VisibleItems.FirstOrDefault(i => i.XPos == player.XPos && i.YPos == player.YPos);
+
+			if (item != null)
+			{
+				return string.Format("{0}/{1} ({2},{3})", map.Name, item.Name, player.XPos, player.YPos);
+			}
+
+			var roomId = (activeTile & (uint) TileFlags.ROOM_ID);
+
+			if (roomId > 0)
+			{
+				return string.Format("{0}/{1} ({2},{3})", map.Name, roomId, player.XPos, player.YPos);
+			}
+
+			return string.Format("{0} ({1},{2})", map.Name, player.XPos, player.YPos);
 		}
 
 		private void WieldWeapon(Character player)
