@@ -286,7 +286,14 @@ namespace ConsoleApp
 			var positionValue = (TileFlags)map.GetPositionValue(new Position(player.XPos, player.YPos));
 			var debug = string.Format("Current: {0}", positionValue);
 
-			foreach (TileFlags flag in Enum.GetValues(typeof(TileFlags)))
+			var flags = Enum.GetValues(typeof (TileFlags))
+			                .Cast<TileFlags>()
+			                .Where(flag => flag != TileFlags.NOTHING)
+			                .ToList();
+
+			var exactMatches = flags.Where(flag => (positionValue & flag) == flag).ToList();
+
+			foreach (var flag in flags)
 			{
 				var tileFlags = positionValue & flag;
 
@@ -295,6 +302,8 @@ namespace ConsoleApp
 					debug += string.Format(" | {0}:{1}", flag, tileFlags);
 				}
 			}
+
+			debug += string.Format(" ({0})", string.Join("|", exactMatches));
 
 			return debug;
 		}
