@@ -305,6 +305,12 @@ namespace ConsoleApp
 
 			debug += string.Format(" ({0})", string.Join("|", exactMatches));
 
+			var label = (uint) (positionValue & TileFlags.LABEL);
+			if (label > 0)
+			{
+				debug += string.Format(" LBL:'{0}'", Console2.Encoding.GetString(BitConverter.GetBytes(label)));
+			}
+
 			return debug;
 		}
 
@@ -521,33 +527,30 @@ namespace ConsoleApp
 		{
 			var flags = (TileFlags)tileValue;
 
-			//if ((flags & TileFlags.LABEL) > 0)
-			//	return new Tile('L');
-			//if ((flags & TileFlags.ROOM_ID) > 0)
-			//	return new Tile('I');
+			var bgCol = (flags & TileFlags.LABEL) > 0 ? ConsoleColor.DarkBlue : ConsoleColor.Black;
 
 			if (flags == TileFlags.NOTHING)
-				return new Tile('#', ConsoleColor.DarkGray);
+				return new Tile('#', ConsoleColor.DarkGray, bgCol);
 			if ((flags & TileFlags.STAIR_UP) > 0)
-				return new Tile('>', ConsoleColor.Cyan);
+				return new Tile('>', ConsoleColor.Cyan, bgCol);
 			if ((flags & TileFlags.STAIR_DOWN) > 0)
-				return new Tile('<', ConsoleColor.Cyan);
+				return new Tile('<', ConsoleColor.Cyan, bgCol);
 			if ((flags & TileFlags.PORTCULLIS) > 0)
-				return new Tile('€');
+				return new Tile('€', backColor:bgCol);
 			if ((flags & (TileFlags.DOOR1 | TileFlags.DOOR2 | TileFlags.DOOR3 | TileFlags.DOOR4)) > 0)
-				return new Tile('+', ConsoleColor.White);
+				return new Tile('+', ConsoleColor.White,bgCol);
 			if ((flags & TileFlags.ARCH) > 0)
-				return new Tile('~');
+				return new Tile('~', backColor:bgCol);
 			if ((flags & TileFlags.ENTRANCE) > 0)
-				return new Tile('=');
+				return new Tile('=', backColor:bgCol);
 			if ((flags & TileFlags.PERIMETER) > 0)
-				return new Tile('#', ConsoleColor.White);
+				return new Tile('#', ConsoleColor.White,bgCol);
 			if ((flags & TileFlags.CORRIDOR) > 0)
-				return new Tile(' ');
+				return new Tile(' ', backColor: bgCol);
 			if ((flags & TileFlags.ROOM) > 0)
-				return new Tile(' ');
+				return new Tile(' ', backColor: bgCol);
 			if ((flags & TileFlags.BLOCKED) > 0)
-				return new Tile('¤');
+				return new Tile('¤', backColor: bgCol);
 			return new Tile('_');
 		}
 	}
