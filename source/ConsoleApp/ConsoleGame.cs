@@ -85,7 +85,7 @@ namespace ConsoleApp
 
 			for (int i = 0; i < player.Inventory.Length; i++)
 			{
-				area.Write(string.Format("{0}: {1}", i, _client.GetInfoFor(player.Inventory[i]).Name), 1, 17 + i);
+				area.Write(string.Format("{0}: {1}", i, _context.GetInfoFor(player.Inventory[i]).Name), 1, 17 + i);
 			}
 
 			area.SetOffset(0, 0);
@@ -533,7 +533,7 @@ namespace ConsoleApp
 
 		private string SelectFromInventory(string action, Character player)
 		{
-			var inventory = player.Inventory.Select(x => _client.GetInfoFor(x)).ToList();
+			var inventory = player.Inventory.Select(x => _context.GetInfoFor(x)).ToList();
 
 			if (!inventory.Any())
 			{

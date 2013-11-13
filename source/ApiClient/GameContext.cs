@@ -11,6 +11,7 @@ namespace ApiClient
 		private readonly Dictionary<string, Character> _currentParty = new Dictionary<string, Character>();
 		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
+		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
 
 		public GameContext(IClientWrapper client, IMapStorage mapStorage)
 		{
@@ -149,6 +150,23 @@ namespace ApiClient
 			}
 
 			return map;
+		}
+
+		public ItemInfo GetInfoFor(string itemId)
+		{
+			if (_currentItems.ContainsKey(itemId))
+			{
+				return _currentItems[itemId];
+			}
+
+			var itemInfo = _client.GetInfoFor(itemId);
+
+			if (itemInfo.Type == "item")
+			{
+				_currentItems[itemInfo.Id] = itemInfo;
+			}
+
+			return itemInfo;
 		}
 	}
 }
