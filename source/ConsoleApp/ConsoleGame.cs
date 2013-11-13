@@ -646,13 +646,8 @@ namespace ConsoleApp
 				}
 				else if (item.Type == "character")
 				{
-					var character = _client.GetCharacter(item.Id);
-
-					var color = character.Error != null ?
-						ConsoleColor.Red :
-						ConsoleColor.Green;
-
-					area.Write('@', item.XPos, item.YPos, color);
+					var isFriendly = new[] {_player1Id, _player2Id, _player3Id}.Any(x => x == item.Id);
+					area.Write('@', item.XPos, item.YPos, isFriendly ? ConsoleColor.Green : ConsoleColor.Red);
 				}
 			}
 		}
