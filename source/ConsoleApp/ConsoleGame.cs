@@ -13,6 +13,9 @@ namespace ConsoleApp
 		private readonly IClientWrapper _client;
 		private readonly GameContext _context;
 		private string _playerId;
+		private string _player1Id;
+		private string _player2Id;
+		private string _player3Id;
 		private readonly Console2 _console2;
 		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
 
@@ -25,7 +28,7 @@ namespace ConsoleApp
 
 		public void RunGame()
 		{
-			InitPlayer();
+			InitPlayers();
 
 			RunGameLoop();
 
@@ -113,7 +116,7 @@ namespace ConsoleApp
 		private ConsoleKeyInfo CreateMessagePopup(string title, string[] messages)
 		{
 			var max = Math.Max(messages.Max(x => x.Length), title.Length);
-			var area = new ConsoleArea((short) (max + 2), (short) (messages.Count() + 2));
+			var area = new ConsoleArea((short) (max + 4), (short) (messages.Count() + 2));
 			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
 			area.SetBorderBackground(ConsoleColor.DarkBlue);
 			area.SetBorderForeground(ConsoleColor.Cyan);
@@ -123,7 +126,7 @@ namespace ConsoleApp
 
 			for (int i = 0; i < messages.Length; i++)
 			{
-				area.Write(messages[i], 1, i + 1);
+				area.Write(messages[i], 2, i + 1);
 			}
 
 			_console2.DrawArea(area, 
@@ -131,6 +134,32 @@ namespace ConsoleApp
 				(short) (_console2.Height / 2 - (area.Height / 2)));
 
 			return Console.ReadKey(true);
+		}
+
+		private string CreateTextInputPopup(string title, string prompt)
+		{
+			var area = new ConsoleArea(70, 3);
+			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
+			area.SetBorderBackground(ConsoleColor.Black);
+			area.SetBorderForeground(ConsoleColor.White);
+			area.SetDefaultBackground(ConsoleColor.Black);
+			area.SetDefaultForeground(ConsoleColor.White);
+			area.SetTitle(title);
+
+			area.Write(prompt, 1, 0);
+			area.SetOffset(0, 0);
+
+			var xPos = (short) (_console2.Width/2 - (area.Width/2));
+			var yPos = (short) (_console2.Height/2 - (area.Height/2));
+
+			_console2.DrawArea(area, xPos, yPos);
+			
+			Console.SetCursorPosition(xPos + prompt.Length + 3, yPos + 1);
+			Console.CursorVisible = true;
+			var result = Console.ReadLine();
+			Console.CursorVisible = false;
+
+			return result;
 		}
 
 		private void FillArea(Map map, ConsoleArea area, IEnumerable<Position> positions)
@@ -154,44 +183,15 @@ namespace ConsoleApp
 
 				var player = _context.GetPlayer(_playerId);
 				var map = _context.GetMap(player.CurrentMap);
+				var mapArea = UpdateMapArea(map, player, previousItemsAndEntities);
+				UpdateMessageArea(messageArea);
+				UpdateDebugArea(debugArea, player, map);
 
-				if (!_maps.ContainsKey(map.Name))
-				{
-					_maps[map.Name] = CreateMapArea(map);
-				}
-				else
-				{
-					FillArea(map, _maps[map.Name], player.VisibleArea.Concat(previousItemsAndEntities));
-				}
-
-				var mapArea = _maps[map.Name];
-
-				var items = player.VisibleItems.ToList();
-				var entities = player.VisibleEntities.ToList();
-				
-				player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
-				player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
-
-				previousItemsAndEntities = items.Concat(entities).Select(x => new Position(x.XPos, x.YPos));
-
-				mapArea.SetTitle(GetMapAreaTitle(player, map));
-
-				messageArea.Clear();
-				var messages = _context.Messages.Take(5).Select((m, i) => new { Text = m, Index = i });
-				foreach (var message in messages)
-				{
-					messageArea.Write(message.Text, 0, message.Index);
-				}
-
-				messageArea.SetOffset(0, 0);
-				mapArea.CenterOffset(player.XPos, player.YPos);
+				previousItemsAndEntities = GetAllVisibleItemPositions(player);
 
 				_console2.DrawArea(mapArea, 0, 0);
 				_console2.DrawArea(messageArea, 0, mapArea.Height);
 				_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
-
-				debugArea.Clear();
-				debugArea.Write(GetDebugInfo(player, map), 0, 0);
 				_console2.DrawArea(debugArea, 0, (short) (mapArea.Height + messageArea.Height));
 
 				var key = Console.ReadKey(true);
@@ -201,84 +201,225 @@ namespace ConsoleApp
 					break;
 				}
 
-				if (key.Key == ConsoleKey.P)
-				{
-					AddResponseMessage(_client.Get(player.Id));
-					continue;
-				}
-				if (key.Key == ConsoleKey.O)
-				{
-					DropItem(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.V)
-				{
-					WieldWeapon(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.R)
-				{
-					EquipArmor(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.T)
-				{
-					UnequipArmor(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.B)
-				{
-					UnwieldWeapon(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.F)
-				{
-					QuaffPotion(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.OemPlus)
-				{
-					AllocatePoints(player);
-					continue;
-				}
-				if (key.Key == ConsoleKey.U)
-				{
-					AddResponseMessage(_client.LevelUp(player.Id));
-					continue;
-				}
-				if (key.Key == ConsoleKey.N)
-				{
-					AddResponseMessage(_client.LevelDown(player.Id));
-					continue;
-				}
-				if (key.Key == ConsoleKey.I)
-				{
-					CreateMessagePopup("Visible Items",
-					                   player.VisibleItems.Any()
-						                   ? player.VisibleItems.Select(x => x.Name).ToArray()
-						                   : new[] {"You can't see any items here..."});
-					continue;
-				}
-				if (key.Key == ConsoleKey.K)
-				{
-					CreateMessagePopup("Visible Entities",
-					                   player.VisibleEntities.Any()
-						                   ? player.VisibleEntities.Select(x => x.Name).ToArray()
-						                   : new[] {"You can't see any entities here..."});
-					continue;
-				}
-
-				var direction = GetPlayerDirection(key.Key);
-
-				if (direction != Direction.None)
-				{
-					_context.MovePlayer(_playerId, direction);
-				}
+				HandleKeyPress(key, player);
 			}
 
 			Console.ResetColor();
 			Console.Clear();
 			Console.CursorVisible = true;
+		}
+
+		private void HandleKeyPress(ConsoleKeyInfo key, Character player)
+		{
+			switch (key.Key)
+			{
+				case ConsoleKey.P:
+					AddResponseMessage(_client.Get(player.Id));
+					break;
+				case ConsoleKey.O:
+					DropItem(player);
+					break;
+				case ConsoleKey.V:
+					WieldWeapon(player);
+					break;
+				case ConsoleKey.R:
+					EquipArmor(player);
+					break;
+				case ConsoleKey.T:
+					UnequipArmor(player);
+					break;
+				case ConsoleKey.B:
+					UnwieldWeapon(player);
+					break;
+				case ConsoleKey.F:
+					QuaffPotion(player);
+					break;
+				case ConsoleKey.OemPlus:
+					AllocatePoints(player);
+					break;
+				case ConsoleKey.U:
+					AddResponseMessage(_client.LevelUp(player.Id));
+					break;
+				case ConsoleKey.N:
+					AddResponseMessage(_client.LevelDown(player.Id));
+					break;
+				case ConsoleKey.I:
+					CreateMessagePopup("Visible Items",
+					                   player.VisibleItems.Any()
+						                   ? player.VisibleItems.Select(x => x.Name).ToArray()
+						                   : new[] {"You can't see any items here..."});
+					break;
+				case ConsoleKey.K:
+					CreateMessagePopup("Visible Entities",
+					                   player.VisibleEntities.Any()
+						                   ? player.VisibleEntities.Select(x => x.Name).ToArray()
+						                   : new[] {"You can't see any entities here..."});
+					break;
+				case ConsoleKey.OemMinus:
+					var command = CreateTextInputPopup("What would you like do do?", "Type command:");
+					HandleCommand(command);
+					break;
+				default:
+					var direction = GetPlayerDirection(key.Key);
+
+					if (direction != Direction.None)
+					{
+						_context.MovePlayer(_playerId, direction);
+					}
+					else
+					{
+						switch (key.KeyChar)
+						{
+							case '1':
+								_playerId = _player1Id;
+								break;
+							case '2':
+								_playerId = _player2Id;
+								break;
+							case '3':
+								_playerId = _player3Id;
+								break;
+						}
+					}
+					break;
+			}
+		}
+
+		private static IEnumerable<Position> GetAllVisibleItemPositions(Character player)
+		{
+			return player.VisibleItems.Concat(player.VisibleEntities)
+			             .Select(x => new Position(x.XPos, x.YPos));
+		}
+
+		private void UpdateDebugArea(ConsoleArea debugArea, Character player, Map map)
+		{
+			debugArea.Clear();
+			debugArea.Write(GetDebugInfo(player, map), 0, 0);
+		}
+
+		private void UpdateMessageArea(ConsoleArea messageArea)
+		{
+			messageArea.Clear();
+			var messages = _context.Messages.Take(5).Select((m, i) => new {Text = m, Index = i});
+			foreach (var message in messages)
+			{
+				messageArea.Write(message.Text, 0, message.Index);
+			}
+			messageArea.SetOffset(0, 0);
+		}
+
+		private ConsoleArea UpdateMapArea(Map map, Character player, IEnumerable<Position> otherPositionsToRedraw)
+		{
+			if (!_maps.ContainsKey(map.Name))
+			{
+				_maps[map.Name] = CreateMapArea(map);
+			}
+			else
+			{
+				FillArea(map, _maps[map.Name], player.VisibleArea.Concat(otherPositionsToRedraw));
+			}
+
+			var mapArea = _maps[map.Name];
+
+			player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
+			player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
+
+			mapArea.SetTitle(GetMapAreaTitle(player, map));
+			mapArea.CenterOffset(player.XPos, player.YPos);
+
+			return mapArea;
+		}
+
+		private void HandleCommand(string command)
+		{
+			switch ((command ?? "").ToLowerInvariant())
+			{
+				case "findpath":
+					FindPath();
+					break;
+
+				default:
+					CreateMessagePopup("Unknown command", new[]
+					{
+						"Select one of the following",
+						"---------------------------",
+						"findpath"
+					});
+					break;
+			}
+		}
+
+		private void FindPath()
+		{
+			var player = _context.GetPlayer(_playerId);
+			var map = _context.GetMap(player.CurrentMap);
+			var mapArea = CreateMapArea(map);
+
+			_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
+
+			var startPos = SelectPosition(map, new Position(player.XPos, player.YPos), "Select start position");
+			if (startPos == null) return;
+
+			mapArea.Write("1", startPos.X, startPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+			mapArea.CenterOffset(startPos.X, startPos.Y);
+			_console2.DrawArea(mapArea, 0, 0);
+
+			var endPos = SelectPosition(map, startPos, "Select end position");
+			if (endPos == null) return;
+
+			mapArea.Write("2", endPos.X, endPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+			mapArea.CenterOffset(endPos.X, endPos.Y);
+			_console2.DrawArea(mapArea, 0, 0);
+
+			Console.ReadKey(true);
+		}
+
+		private Position SelectPosition(Map map, Position start, string title)
+		{
+			var mapArea = CreateMapArea(map);
+			var messageArea = CreateMessageArea();
+			mapArea.SetTitle(title);
+			messageArea.SetTitle(title);
+
+			var position = start;
+
+			while (true)
+			{
+				var previousPosition = position;
+
+				mapArea.Write("S", start.X, start.Y, ConsoleColor.Blue, ConsoleColor.DarkBlue);
+				mapArea.Write("X", position.X, position.Y, ConsoleColor.Red, ConsoleColor.DarkRed);
+				mapArea.CenterOffset(position.X, position.Y);
+
+				messageArea.Clear();
+				messageArea.Write(string.Format("Select position and press [ENTER] ([Escape] to abort)"), 1, 1);
+				messageArea.Write(string.Format("Current position: {0}, {1}", position.X, position.Y), 1, 2);
+
+				_console2.DrawArea(mapArea, 0, 0);
+				_console2.DrawArea(messageArea, 0, mapArea.Height);
+
+				switch (Console.ReadKey(true).Key)
+				{
+					case ConsoleKey.UpArrow:
+						position = new Position(position.X, position.Y - 1);
+						break;
+					case ConsoleKey.DownArrow:
+						position = new Position(position.X, position.Y + 1);
+						break;
+					case ConsoleKey.LeftArrow:
+						position = new Position(position.X - 1, position.Y);
+						break;
+					case ConsoleKey.RightArrow:
+						position = new Position(position.X + 1, position.Y);
+						break;
+					case ConsoleKey.Enter:
+						return position;
+					case ConsoleKey.Escape:
+						return null;
+				}
+
+				FillArea(map, mapArea, new[] { previousPosition });
+			}
 		}
 
 		private string GetDebugInfo(Character player, Map map)
@@ -317,7 +458,6 @@ namespace ConsoleApp
 		private string GetMapAreaTitle(Character player, Map map)
 		{
 			var activeTile = map.GetPositionValue(new Position(player.XPos, player.YPos));
-			
 			var item = player.VisibleItems.FirstOrDefault(i => i.XPos == player.XPos && i.YPos == player.YPos);
 
 			if (item != null)
@@ -449,19 +589,23 @@ namespace ConsoleApp
 			{
 				case ConsoleKey.Z:
 					return Direction.DownLeft;
-				case ConsoleKey.X:
+				case ConsoleKey.S:
+				case ConsoleKey.DownArrow:
 					return Direction.Down;
 				case ConsoleKey.C:
 					return Direction.DownRight;
 
 				case ConsoleKey.A:
+				case ConsoleKey.LeftArrow:
 					return Direction.Left;
 				case ConsoleKey.D:
+				case ConsoleKey.RightArrow:
 					return Direction.Right;
 
 				case ConsoleKey.Q:
 					return Direction.UpLeft;
 				case ConsoleKey.W:
+				case ConsoleKey.UpArrow:
 					return Direction.Up;
 				case ConsoleKey.E:
 					return Direction.UpRight;
@@ -471,10 +615,16 @@ namespace ConsoleApp
 			}
 		}
 
-		private void InitPlayer()
+		private void InitPlayers()
 		{
-			_playerId = _context.Party.FirstOrDefault() ??
-				_context.CreateNewCharacter("Blahonga", 14, 14, 10, 10, 10);
+			_player1Id = _context.Party.FirstOrDefault() ??
+				_context.CreateNewCharacter("JiNX the first", 14, 14, 10, 10, 10);
+			_player2Id = _context.Party.Skip(1).FirstOrDefault() ??
+				_context.CreateNewCharacter("JiNX the second", 14, 10, 14, 10, 10);
+			_player3Id = _context.Party.Skip(2).FirstOrDefault() ??
+				_context.CreateNewCharacter("JiNX the third", 10, 10, 18, 10, 10);
+
+			_playerId = _player1Id;
 		}
 
 		private void DrawItem(Item item, ConsoleArea area)

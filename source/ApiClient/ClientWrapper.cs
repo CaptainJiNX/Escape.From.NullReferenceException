@@ -120,7 +120,10 @@ namespace ApiClient
 
 		private JObject RunCommand(string command, params string[] args)
 		{
-			return JObject.Parse(_client.DownloadString(GetCommandUri(command, args)));
+			var commandUri = GetCommandUri(command, args);
+			var response = _client.DownloadString(commandUri);
+
+			return JObject.Parse(response);
 		}
 
 		private string GetCommandUri(string command, params string[] args)
