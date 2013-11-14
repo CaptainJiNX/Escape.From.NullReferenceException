@@ -46,7 +46,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Awesome.cs" />
     <Compile Include="Console2.cs" />
     <Compile Include="ConsoleArea.cs" />
     <Compile Include="Program.cs" />
