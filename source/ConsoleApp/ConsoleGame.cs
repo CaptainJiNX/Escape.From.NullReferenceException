@@ -22,7 +22,7 @@ namespace ConsoleApp
 		public ConsoleGame()
 		{
 			_client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
-			_context = new GameContext(_client, new BinaryMapStorage());
+			_context = new GameContext(_client, new BinaryMapStorage(), new DamageStatisticsStorage());
 			_console2 = new Console2(100, 36, ConsoleColor.DarkRed);
 		}
 

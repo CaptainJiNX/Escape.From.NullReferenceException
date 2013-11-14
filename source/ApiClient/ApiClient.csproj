@@ -51,10 +51,12 @@
     <Compile Include="BinaryMapStorage.cs" />
     <Compile Include="Character.cs" />
     <Compile Include="ClientWrapper.cs" />
+    <Compile Include="DamageStatistics.cs" />
+    <Compile Include="DamageStatisticsStorage.cs" />
     <Compile Include="Direction.cs" />
     <Compile Include="GameContext.cs" />
     <Compile Include="IClientWrapper.cs" />
-    <Compile Include="IMapStorage.cs" />
+    <Compile Include="ISimpleStorage.cs" />
     <Compile Include="Item.cs" />
     <Compile Include="ItemInfo.cs" />
     <Compile Include="Map.cs" />

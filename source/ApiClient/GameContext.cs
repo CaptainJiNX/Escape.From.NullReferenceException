@@ -1,22 +1,28 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace ApiClient
 {
 	public class GameContext
 	{
 		private readonly IClientWrapper _client;
-		private readonly IMapStorage _mapStorage;
+		private readonly ISimpleStorage<Map> _mapStorage;
+		private readonly ISimpleStorage<DamageStatistics> _damageStorage;
 
 		private readonly Dictionary<string, Character> _currentParty = new Dictionary<string, Character>();
 		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
 		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
 
-		public GameContext(IClientWrapper client, IMapStorage mapStorage)
+		public GameContext(IClientWrapper client, 
+			ISimpleStorage<Map> mapStorage, 
+			ISimpleStorage<DamageStatistics> damageStorage)
 		{
 			_client = client;
 			_mapStorage = mapStorage;
+			_damageStorage = damageStorage;
 
 			Initialize();
 		}
@@ -87,10 +93,35 @@ namespace ApiClient
 
 			if (map.HasChanges())
 			{
-				_mapStorage.Save(map);
+				_mapStorage.Store(map);
 			}
 
+			StoreDamageStatistics(scanResult, playerId);
+
 			AddUpdateMessages(scanResult);
+		}
+
+		private void StoreDamageStatistics(ScanResult result, string playerId)
+		{
+			if (result.Updates == null) return;
+			var player = GetPlayer(playerId);
+
+			try
+			{
+				foreach (var update in result.Updates)
+				{
+					if (update.Message == null) continue;
+					var match = Regex.Match(update.Message, "\\[" + playerId + "\\]\\sscored\\sa\\shit\\s\\[damage\\s(?<damage>\\d+)\\]");
+					if (!match.Success) continue;
+					var damage = int.Parse(match.Groups["damage"].Captures[0].Value);
+					var stats = new DamageStatistics(player.WieldedWeaponName, damage, player.Strength, player.Level);
+					_damageStorage.Store(stats);
+				}
+			}
+			catch (Exception ex)
+			{
+				AddMessage(ex.Message);
+			}
 		}
 
 		public Character GetPlayer(string playerId)

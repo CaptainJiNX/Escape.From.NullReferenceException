@@ -5,7 +5,7 @@ using BinaryRage;
 
 namespace ApiClient
 {
-	public class BinaryMapStorage : IMapStorage
+	public class BinaryMapStorage : ISimpleStorage<Map>
 	{
 		private HashSet<string> _mapNames;
 
@@ -30,7 +30,7 @@ namespace ApiClient
 			return MapNames.Select(Get);
 		}
 
-		public Map Get(string mapName)
+		private Map Get(string mapName)
 		{
 			try
 			{
@@ -42,11 +42,11 @@ namespace ApiClient
 			}
 		}
 
-		public void Save(Map map)
+		public void Store(Map value)
 		{
-			AddMapName(map.Name);
-			DB<Map>.Insert(map.Name, map, MapsLocation);
-			map.ClearChanges();
+			AddMapName(value.Name);
+			DB<Map>.Insert(value.Name, value, MapsLocation);
+			value.ClearChanges();
 		}
 
 		private HashSet<string> LoadMapNames()
