@@ -266,6 +266,9 @@ namespace ConsoleApp
 					var command = CreateTextInputPopup("What would you like do do?", "Type command:");
 					HandleCommand(command);
 					break;
+				case ConsoleKey.H:
+					QuickHeal(player);
+					break;
 				default:
 					var direction = GetPlayerDirection(key.Key);
 
@@ -290,6 +293,24 @@ namespace ConsoleApp
 					}
 					break;
 			}
+		}
+
+		private void QuickHeal(Character player)
+		{
+			var healingPotion = player.Inventory
+				.Select(x => _context.GetInfoFor(x))
+				.FirstOrDefault(IsHealingPotion);
+
+			if (healingPotion != null)
+			{
+				AddResponseMessage(_client.Quaff(healingPotion.Id, player.Id));
+			}
+		}
+
+		private static bool IsHealingPotion(ItemInfo itemInfo)
+		{
+			return itemInfo.SubType == "potion" && 
+				itemInfo.Name.ToLowerInvariant().Contains("healing");
 		}
 
 		private static IEnumerable<Position> GetAllVisibleItemPositions(Character player)
