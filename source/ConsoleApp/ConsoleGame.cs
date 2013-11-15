@@ -243,6 +243,13 @@ namespace ConsoleApp
 				case ConsoleKey.N:
 					AddResponseMessage(_client.LevelDown(player.Id));
 					break;
+				case ConsoleKey.J:
+					var plane = CreateTextInputPopup("Planeshift", "Shift to plane:");
+					if (!string.IsNullOrEmpty(plane))
+					{
+						AddResponseMessage(_client.Planeshift(player.Id, plane));
+					}
+					break;
 				case ConsoleKey.I:
 					CreateMessagePopup("Visible Items",
 					                   player.VisibleItems.Any()
