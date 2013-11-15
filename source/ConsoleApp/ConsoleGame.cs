@@ -399,6 +399,17 @@ namespace ConsoleApp
 			mapArea.CenterOffset(endPos.X, endPos.Y);
 			_console2.DrawArea(mapArea, 0, 0);
 
+			var pathFinder = new PathFinder(map);
+			var path = pathFinder.CalculatePath(startPos, endPos, player.VisibleEntities.Select(e => new Position(e.XPos, e.YPos)));
+
+			foreach (var pathPos in path)
+			{
+				var tile = GetTile(map.GetPositionValue(pathPos));
+				mapArea.Write(tile.Character, pathPos.X, pathPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+			}
+
+			_console2.DrawArea(mapArea, 0, 0);
+
 			Console.ReadKey(true);
 		}
 
