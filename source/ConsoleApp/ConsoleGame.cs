@@ -634,9 +634,28 @@ namespace ConsoleApp
 			_playerId = _player1Id;
 		}
 
+		private ConsoleColor GetItemColor(Item item)
+		{
+			var itemInfo = _context.GetInfoFor(item.Id);
+
+			switch (itemInfo.SubType)
+			{
+				case "potion":
+					return ConsoleColor.Cyan;
+				case "weapon":
+					return ConsoleColor.Yellow;
+				case "armor":
+					return ConsoleColor.Magenta;
+				case "ring":
+					return ConsoleColor.Gray;
+				default:
+					return ConsoleColor.DarkGray;
+			}
+		}
+
 		private void DrawItem(Item item, ConsoleArea area)
 		{
-			area.Write(item.Name[0], item.XPos, item.YPos, ConsoleColor.Yellow);
+			area.Write(item.Name[0], item.XPos, item.YPos, GetItemColor(item));
 		}
 
 		private void DrawEntity(Item item, ConsoleArea area)
