@@ -110,6 +110,7 @@ namespace ApiClient
 		{
 			XPos = result.XPos;
 			YPos = result.YPos;
+			CurrentMap = result.Map;
 
 			_visibleItems = result.Items;
 			_visibleEntities = result.Entities;
