@@ -16,6 +16,12 @@ namespace ApiClient
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
 		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
 
+		private static readonly Character NullCharacter = new Character
+		{
+			Name = "Null Character",
+			Inventory = new string[0]
+		};
+
 		public GameContext(IClientWrapper client, 
 			ISimpleStorage<Map> mapStorage, 
 			ISimpleStorage<DamageStatistics> damageStorage)
@@ -126,7 +132,9 @@ namespace ApiClient
 
 		public Character GetPlayer(string playerId)
 		{
-			return _currentParty[playerId];
+			if (string.IsNullOrEmpty(playerId)) return NullCharacter;
+			Character player;
+			return _currentParty.TryGetValue(playerId, out player) ? player : NullCharacter;
 		}
 
 		private void UpdatePlayer(string playerId, ScanResult result)
