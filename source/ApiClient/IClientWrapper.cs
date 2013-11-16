@@ -25,5 +25,6 @@ namespace ApiClient
 		JObject LevelDown(string charId);
 		JObject Get(string charId);
 		JObject Drop(string itemId, string charId);
+		HighScoreList GetHighScores();
 	}
 }

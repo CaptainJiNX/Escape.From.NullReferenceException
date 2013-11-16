@@ -213,6 +213,9 @@ namespace ConsoleApp
 		{
 			switch (key.Key)
 			{
+				case ConsoleKey.Spacebar:
+					_context.MovePlayer(player.Id, _context.GetNextDirectionForPlayer(player.Id));
+					break;
 				case ConsoleKey.P:
 					AddResponseMessage(_client.Get(player.Id));
 					break;
@@ -289,6 +292,12 @@ namespace ConsoleApp
 							case '3':
 								_currentPlayerId = _player3Id;
 								break;
+							case '0':
+								_context.SetDefenseMode(_currentPlayerId);
+								break;
+							case '9':
+								_context.SetAttackMode(_currentPlayerId);
+								break;
 						}
 					}
 					break;
@@ -349,6 +358,13 @@ namespace ConsoleApp
 
 			var mapArea = _maps[map.Name];
 
+			var goalForPlayer = _context.GetGoalForPlayer(player.Id);
+			if (goalForPlayer != null)
+			{
+				var tile = GetTile(map.GetPositionValue(goalForPlayer));
+				mapArea.Write(tile.Character, goalForPlayer.X, goalForPlayer.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+			}
+
 			player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
 			player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
 
@@ -369,15 +385,95 @@ namespace ConsoleApp
 					FindPath();
 					break;
 
+				case "fu":
+				case "findup":
+					FindPosition(TileFlags.STAIR_UP);
+					break;
+
+				case "fd":
+				case "finddown":
+					FindPosition(TileFlags.STAIR_DOWN);
+					break;
+
+				case "sg":
+				case "setgoal":
+					SetGoal();
+					break;
+
+				case "hs":
+				case "highscores":
+					ShowHighScores();
+					break;
+
 				default:
 					CreateMessagePopup("Unknown command", new[]
 					{
 						"Select one of the following",
 						"---------------------------",
-						"findpath (fp)"
+						"findpath (fp)",
+						"findup (fu)",
+						"finddown (fd)",
+						"setgoal (sg)",
+						"highscores (hs)"
 					});
 					break;
 			}
+		}
+
+		private void ShowHighScores()
+		{
+			var highScores = _client.GetHighScores();
+			var messages = highScores.Scores.SelectMany(s => new[]
+			{
+				string.Format("{0}: {1}, {2} and {3}", s.Score, s.Name, s.Weapon, s.Armor),
+				string.Format("   ({0})", s.Info)
+			});
+			CreateMessagePopup("<-- Wall of fame -->", messages.ToArray());
+		}
+
+		private void FindPosition(TileFlags tileToFind)
+		{
+			var player = _context.GetPlayer(_currentPlayerId);
+			var map = _context.GetMap(player.CurrentMap);
+			var mapArea = CreateMapArea(map);
+
+			_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
+
+			var found = map.AllPositions
+			                  .Select(p => new {Position = p, Flags = (TileFlags) map.GetPositionValue(p)})
+							  .FirstOrDefault(x => (x.Flags & tileToFind) > 0);
+
+			if (found == null)
+				return;
+			_context.SetGoalForPlayer(player.Id, found.Position);
+			var path = PathFinder.CalculatePath(player.Position, found.Position, map.IsWalkable);
+
+			foreach (var pathPos in path)
+			{
+				var tile = GetTile(map.GetPositionValue(pathPos));
+				mapArea.Write(tile.Character, pathPos.X, pathPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+			}
+
+			mapArea.CenterOffset(found.Position.X, found.Position.Y);
+			_console2.DrawArea(mapArea, 0, 0);
+
+			Console.ReadKey(true);
+		}
+
+		private void SetGoal()
+		{
+			var player = _context.GetPlayer(_currentPlayerId);
+			var map = _context.GetMap(player.CurrentMap);
+			var mapArea = CreateMapArea(map);
+
+			_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
+
+			var startPos = new Position(player.XPos, player.YPos);
+
+			var endPos = SelectPosition(map, startPos, "Select goal for player");
+			if (endPos == null) return;
+
+			_context.SetGoalForPlayer(player.Id, endPos);
 		}
 
 		private void FindPath()
@@ -388,7 +484,7 @@ namespace ConsoleApp
 
 			_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
 
-			var startPos = SelectPosition(map, new Position(player.XPos, player.YPos), "Select start position");
+			var startPos = SelectPosition(map, player.Position, "Select start position");
 			if (startPos == null) return;
 
 			mapArea.Write("1", startPos.X, startPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
@@ -401,7 +497,7 @@ namespace ConsoleApp
 			mapArea.Write("2", endPos.X, endPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
 			mapArea.CenterOffset(endPos.X, endPos.Y);
 			_console2.DrawArea(mapArea, 0, 0);
-			var path = PathFinder.CalculatePath(startPos, endPos, p => map.IsWalkable(p, player.VisibleEntities.Select(e => new Position(e.XPos, e.YPos))));
+			var path = PathFinder.CalculatePath(startPos, endPos, map.IsWalkable);
 
 			foreach (var pathPos in path)
 			{
@@ -464,7 +560,7 @@ namespace ConsoleApp
 
 		private string GetDebugInfo(Character player, Map map)
 		{
-			var positionValue = (TileFlags)map.GetPositionValue(new Position(player.XPos, player.YPos));
+			var positionValue = (TileFlags)map.GetPositionValue(player.Position);
 			var debug = string.Format("Current: {0}", positionValue);
 
 			var flags = Enum.GetValues(typeof (TileFlags))
@@ -497,7 +593,7 @@ namespace ConsoleApp
 
 		private string GetMapAreaTitle(Character player, Map map)
 		{
-			var activeTile = map.GetPositionValue(new Position(player.XPos, player.YPos));
+			var activeTile = map.GetPositionValue(player.Position);
 			var item = player.VisibleItems.FirstOrDefault(i => i.XPos == player.XPos && i.YPos == player.YPos);
 
 			if (item != null)

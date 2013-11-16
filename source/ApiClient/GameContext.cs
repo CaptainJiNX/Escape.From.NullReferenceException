@@ -15,6 +15,8 @@ namespace ApiClient
 		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
 		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
+		private readonly Dictionary<string, Position> _goals = new Dictionary<string, Position>();
+		private readonly HashSet<string> _attackingPlayers = new HashSet<string>(); 
 
 		private static readonly Character NullCharacter = new Character
 		{
@@ -81,7 +83,105 @@ namespace ApiClient
 
 		public void MovePlayer(string playerId, Direction dir)
 		{
+			if (dir == Direction.None) return;
 			Update(playerId, _client.Move(playerId, dir));
+		}
+
+		public void SetAttackMode(string playerId)
+		{
+			if(string.IsNullOrEmpty(playerId)) return;
+			if (_attackingPlayers.Contains(playerId)) return;
+			_attackingPlayers.Add(playerId);
+			AddMessage(string.Format("[{0}] is now attacking.", playerId));
+		}
+
+		public void SetDefenseMode(string playerId)
+		{
+			if (string.IsNullOrEmpty(playerId)) return;
+			if (!_attackingPlayers.Contains(playerId)) return;
+			_attackingPlayers.Remove(playerId);
+			AddMessage(string.Format("[{0}] is now avoiding monsters.", playerId));
+		}
+
+		public void SetGoalForPlayer(string playerId, Position goal)
+		{
+			if (goal == null || playerId == null) return;
+
+			var player = GetPlayer(playerId);
+			_goals[player.Id] = goal;
+			AddMessage(string.Format("New goal for player {0} [{1}] set to ({2},{3})", player.Name, player.Id, goal.X, goal.Y));
+		}
+
+		private void RemoveGoalForPlayer(string playerId)
+		{
+			if (playerId == null) return;
+
+			var player = GetPlayer(playerId);
+			_goals.Remove(playerId);
+			AddMessage(string.Format("Removed goal for player {0} [{1}]", player.Name, player.Id));
+		}
+
+		public Position GetGoalForPlayer(string playerId)
+		{
+			Position goal;
+			return _goals.TryGetValue(playerId, out goal) ? goal : null;
+		}
+
+		private bool PlayerCanWalkHere(Character player, Map map, Position pos)
+		{
+			var entities = player.VisibleEntities.Where(item => item.Id != player.Id);
+
+			if (_attackingPlayers.Contains(player.Id))
+			{
+				entities = entities.Where(x => x.Type != "monster");
+			}
+
+			var boulders = player.VisibleItems.Where(item => GetInfoFor(item.Id).SubType == "boulder");
+			var blocked = entities.Concat(boulders).Select(item => new Position(item.XPos, item.YPos));
+
+			return !blocked.Any(x => x.Equals(pos)) && map.IsWalkable(pos);
+		}
+
+		public Direction GetNextDirectionForPlayer(string playerId)
+		{
+			var goalForPlayer = GetGoalForPlayer(playerId);
+
+			if(goalForPlayer == null)
+				return Direction.None;
+
+			var player = GetPlayer(playerId);
+			var map = GetMap(player.CurrentMap);
+			var startPos = player.Position;
+
+			var nextPosition = PathFinder.CalculatePath(startPos, goalForPlayer, p => PlayerCanWalkHere(player, map, p))
+				.Skip(1)
+				.FirstOrDefault();
+
+			return GetDirection(startPos, nextPosition);
+		}
+
+		private Direction GetDirection(Position from, Position to)
+		{
+			if (from == null || to == null) return Direction.None;
+
+			if (to.X > from.X)
+			{
+				if(to.Y > from.Y) return Direction.DownRight;
+				if(to.Y < from.Y) return Direction.UpRight;
+				return Direction.Right;
+			}
+
+			if (to.X < from.X)
+			{
+				if(to.Y > from.Y) return Direction.DownLeft;
+				if(to.Y < from.Y) return Direction.UpLeft;
+				return Direction.Left;
+			}
+
+			if (to.Y > from.Y) return Direction.Down;
+			if (to.Y < from.Y) return Direction.Up;
+
+			return Direction.None;
 		}
 
 		private void Update(string playerId, ScanResult scanResult)
@@ -92,7 +192,7 @@ namespace ApiClient
 				return;
 			}
 
-			UpdatePlayer(playerId, scanResult);
+			var player = UpdatePlayer(playerId, scanResult);
 
 			var map = GetOrAddMap(scanResult.Map);
 			map.Update(scanResult);
@@ -103,8 +203,12 @@ namespace ApiClient
 			}
 
 			StoreDamageStatistics(scanResult, playerId);
-
 			AddUpdateMessages(scanResult);
+
+			if (player.Position.Equals(GetGoalForPlayer(playerId)))
+			{
+				RemoveGoalForPlayer(playerId);
+			}
 		}
 
 		private void StoreDamageStatistics(ScanResult result, string playerId)
@@ -137,7 +241,7 @@ namespace ApiClient
 			return _currentParty.TryGetValue(playerId, out player) ? player : NullCharacter;
 		}
 
-		private void UpdatePlayer(string playerId, ScanResult result)
+		private Character UpdatePlayer(string playerId, ScanResult result)
 		{
 			if (result.Updates != null)
 			{
@@ -151,8 +255,9 @@ namespace ApiClient
 				}
 			}
 
-			var player = _currentParty[playerId];
+			var player = GetPlayer(playerId);
 			player.Update(result);
+			return player;
 		}
 
 		private void AddUpdateMessages(ScanResult result)

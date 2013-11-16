@@ -118,6 +118,11 @@ namespace ApiClient
 			return RunCommand("drop", itemId, charId);
 		}
 
+		public HighScoreList GetHighScores()
+		{
+			return RunCommand("gethighscores").ToObject<HighScoreList>();
+		}
+
 		private JObject RunCommand(string command, params string[] args)
 		{
 			try

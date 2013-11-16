@@ -55,11 +55,10 @@ namespace ApiClient
 			_hasChanges = false;
 		}
 
-		public bool IsWalkable(Position pos, IEnumerable<Position> blocked)
+		public bool IsWalkable(Position pos)
 		{
 			var value = (TileFlags)GetPositionValue(pos);
 			if (value == TileFlags.UNKNOWN) return true;
-			if (blocked.Any(x => x.Equals(pos))) return false;
 			if (value == TileFlags.NOTHING) return false;
 			if ((value & (TileFlags.PERIMETER | TileFlags.BLOCKED)) > 0) return false;
 			return true;

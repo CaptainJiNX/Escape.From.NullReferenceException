@@ -4,6 +4,23 @@ using Newtonsoft.Json;
 
 namespace ApiClient
 {
+	public class HighScoreList
+	{
+		[JsonProperty("success")]
+		public ScoreInfo[] Scores { get; set; }
+		public string Error { get; set; }
+	}
+
+	public class ScoreInfo
+	{
+		public int Score { get; set; }
+		public string Id { get; set; }
+		public string Name { get; set; }
+		public string Armor { get; set; }
+		public string Weapon { get; set; }
+		public string Info { get; set; }
+	}
+
 	public class ScanResult
 	{
 		[JsonProperty("area")]

@@ -55,6 +55,8 @@ namespace ApiClient
 		[JsonProperty("y")]
 		public int YPos { get; set; }
 
+		public Position Position { get { return new Position(XPos, YPos); }}
+
 		public int HitPoints
 		{
 			get
