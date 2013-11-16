@@ -174,6 +174,7 @@ namespace ApiClient
 
 		public Map GetMap(string mapName)
 		{
+			if (string.IsNullOrEmpty(mapName)) return _currentMaps.Values.First();
 			Map map;
 			return _currentMaps.TryGetValue(mapName, out map) ? map : null;
 		}
