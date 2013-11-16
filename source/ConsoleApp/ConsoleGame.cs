@@ -12,7 +12,7 @@ namespace ConsoleApp
 	{
 		private readonly IClientWrapper _client;
 		private readonly GameContext _context;
-		private string _playerId;
+		private string _currentPlayerId;
 		private string _player1Id;
 		private string _player2Id;
 		private string _player3Id;
@@ -23,7 +23,7 @@ namespace ConsoleApp
 		{
 			_client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
 			_context = new GameContext(_client, new BinaryMapStorage(), new DamageStatisticsStorage());
-			_console2 = new Console2(100, 36, ConsoleColor.DarkRed);
+			_console2 = new Console2(120, 41, ConsoleColor.DarkRed);
 		}
 
 		public void RunGame()
@@ -38,7 +38,7 @@ namespace ConsoleApp
 
 		private ConsoleArea CreateMapArea(Map map)
 		{
-			var area = new ConsoleArea(60, 30);
+			var area = new ConsoleArea(60+10, 30+3);
 			area.SetBorderStyle(ConsoleArea.BorderStyle.Double);
 			area.SetBorderBackground(ConsoleColor.Black);
 			area.SetBorderForeground(ConsoleColor.White);
@@ -51,7 +51,7 @@ namespace ConsoleApp
 
 		private ConsoleArea CreatePlayerArea(Character player)
 		{
-			var area = new ConsoleArea(40, 30);
+			var area = new ConsoleArea(40+10, 30+3);
 			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
 			area.SetBorderBackground(ConsoleColor.DarkRed);
 			area.SetBorderForeground(ConsoleColor.Red);
@@ -95,7 +95,7 @@ namespace ConsoleApp
 
 		private ConsoleArea CreateMessageArea()
 		{
-			var area = new ConsoleArea(100, 5);
+			var area = new ConsoleArea(100+20, 5+2);
 			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
 			area.SetBorderBackground(ConsoleColor.DarkYellow);
 			area.SetBorderForeground(ConsoleColor.Yellow);
@@ -107,7 +107,7 @@ namespace ConsoleApp
 
 		private ConsoleArea CreateDebugArea()
 		{
-			var area = new ConsoleArea(100, 1);
+			var area = new ConsoleArea(100+20, 1);
 			area.SetDefaultBackground(ConsoleColor.Black);
 			area.SetDefaultForeground(ConsoleColor.White);
 			return area;
@@ -179,9 +179,9 @@ namespace ConsoleApp
 
 			while (true)
 			{
-				_context.Scan(_playerId);
+				_context.Scan(_currentPlayerId);
 
-				var player = _context.GetPlayer(_playerId);
+				var player = _context.GetPlayer(_currentPlayerId);
 				var map = _context.GetMap(player.CurrentMap);
 				var mapArea = UpdateMapArea(map, player, previousItemsAndEntities);
 				UpdateMessageArea(messageArea);
@@ -274,20 +274,20 @@ namespace ConsoleApp
 
 					if (direction != Direction.None)
 					{
-						_context.MovePlayer(_playerId, direction);
+						_context.MovePlayer(_currentPlayerId, direction);
 					}
 					else
 					{
 						switch (key.KeyChar)
 						{
 							case '1':
-								_playerId = _player1Id;
+								_currentPlayerId = _player1Id;
 								break;
 							case '2':
-								_playerId = _player2Id;
+								_currentPlayerId = _player2Id;
 								break;
 							case '3':
-								_playerId = _player3Id;
+								_currentPlayerId = _player3Id;
 								break;
 						}
 					}
@@ -352,6 +352,8 @@ namespace ConsoleApp
 			player.VisibleItems.ToList().ForEach(item => DrawItem(item, mapArea));
 			player.VisibleEntities.ToList().ForEach(item => DrawEntity(item, mapArea));
 
+			DrawPlayer(player.Id, player.XPos, player.YPos, mapArea);
+
 			mapArea.SetTitle(GetMapAreaTitle(player, map));
 			mapArea.CenterOffset(player.XPos, player.YPos);
 
@@ -362,6 +364,7 @@ namespace ConsoleApp
 		{
 			switch ((command ?? "").ToLowerInvariant())
 			{
+				case "fp":
 				case "findpath":
 					FindPath();
 					break;
@@ -371,7 +374,7 @@ namespace ConsoleApp
 					{
 						"Select one of the following",
 						"---------------------------",
-						"findpath"
+						"findpath (fp)"
 					});
 					break;
 			}
@@ -379,7 +382,7 @@ namespace ConsoleApp
 
 		private void FindPath()
 		{
-			var player = _context.GetPlayer(_playerId);
+			var player = _context.GetPlayer(_currentPlayerId);
 			var map = _context.GetMap(player.CurrentMap);
 			var mapArea = CreateMapArea(map);
 
@@ -398,9 +401,7 @@ namespace ConsoleApp
 			mapArea.Write("2", endPos.X, endPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
 			mapArea.CenterOffset(endPos.X, endPos.Y);
 			_console2.DrawArea(mapArea, 0, 0);
-
-			var pathFinder = new PathFinder(map);
-			var path = pathFinder.CalculatePath(startPos, endPos, player.VisibleEntities.Select(e => new Position(e.XPos, e.YPos)));
+			var path = PathFinder.CalculatePath(startPos, endPos, p => map.IsWalkable(p, player.VisibleEntities.Select(e => new Position(e.XPos, e.YPos))));
 
 			foreach (var pathPos in path)
 			{
@@ -663,7 +664,7 @@ namespace ConsoleApp
 			_player3Id = _context.Party.Skip(2).FirstOrDefault() ??
 				_context.CreateNewCharacter("JiNX the third", 10, 10, 18, 10, 10);
 
-			_playerId = _player1Id;
+			_currentPlayerId = _player1Id;
 		}
 
 		private ConsoleColor GetItemColor(Item item)
@@ -685,6 +686,22 @@ namespace ConsoleApp
 			}
 		}
 
+		private ConsoleColor GetPlayerColor(string playerId)
+		{
+			if (playerId == _currentPlayerId)
+			{
+				return ConsoleColor.Magenta;
+			}
+
+			var isFriendly = new[] { _player1Id, _player2Id, _player3Id }.Any(x => x == playerId);
+			return isFriendly ? ConsoleColor.Green : ConsoleColor.Red;
+		}
+
+		private void DrawPlayer(string playerId, int xPos, int yPos, ConsoleArea area)
+		{
+			area.Write('@', xPos, yPos, GetPlayerColor(playerId));
+		}
+
 		private void DrawItem(Item item, ConsoleArea area)
 		{
 			area.Write(item.Name[0], item.XPos, item.YPos, GetItemColor(item));
@@ -692,21 +709,13 @@ namespace ConsoleApp
 
 		private void DrawEntity(Item item, ConsoleArea area)
 		{
-			if (item.Id == _playerId)
+			if (item.Type == "monster")
 			{
-				area.Write('@', item.XPos, item.YPos, ConsoleColor.Magenta);
+				area.Write(item.Name[0], item.XPos, item.YPos, ConsoleColor.Red);
 			}
-			else
+			else if (item.Type == "character")
 			{
-				if (item.Type == "monster")
-				{
-					area.Write(item.Name[0], item.XPos, item.YPos, ConsoleColor.Red);
-				}
-				else if (item.Type == "character")
-				{
-					var isFriendly = new[] {_player1Id, _player2Id, _player3Id}.Any(x => x == item.Id);
-					area.Write('@', item.XPos, item.YPos, isFriendly ? ConsoleColor.Green : ConsoleColor.Red);
-				}
+				DrawPlayer(item.Id, item.XPos, item.YPos, area);
 			}
 		}
 
@@ -734,6 +743,8 @@ namespace ConsoleApp
 
 			if (flags == TileFlags.NOTHING)
 				return new Tile('#', ConsoleColor.DarkGray, bgCol);
+			if (flags == TileFlags.UNKNOWN)
+				return new Tile('#', ConsoleColor.DarkBlue);
 			if ((flags & TileFlags.STAIR_UP) > 0)
 				return new Tile('>', ConsoleColor.Cyan, bgCol);
 			if ((flags & TileFlags.STAIR_DOWN) > 0)

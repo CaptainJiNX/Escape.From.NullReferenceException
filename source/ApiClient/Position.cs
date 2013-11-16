@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace ApiClient
 {
@@ -26,6 +27,28 @@ namespace ApiClient
 		public override int GetHashCode()
 		{
 			return unchecked((X*397) ^ Y);
+		}
+
+		public int Distance(Position to)
+		{
+			return Math.Max(Math.Abs(X - to.X), Math.Abs(Y - to.Y));
+		}
+
+		public IEnumerable<Position> GetNeighbours()
+		{
+			var north = Y - 1;
+			var south = Y + 1;
+			var east = X + 1;
+			var west = X - 1;
+
+			yield return new Position(X, north);
+			yield return new Position(east, Y);
+			yield return new Position(X, south);
+			yield return new Position(west, Y);
+			yield return new Position(east, north);
+			yield return new Position(east, south);
+			yield return new Position(west, north);
+			yield return new Position(west, south);
 		}
 	}
 }

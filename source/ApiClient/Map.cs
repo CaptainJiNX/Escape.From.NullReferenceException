@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ApiClient
 {
@@ -41,7 +42,7 @@ namespace ApiClient
 
 		public uint GetPositionValue(Position position)
 		{
-			return _positions.ContainsKey(position) ? _positions[position] : 0;
+			return _positions.ContainsKey(position) ? _positions[position] : uint.MaxValue;
 		}
 
 		public bool HasChanges()
@@ -52,6 +53,16 @@ namespace ApiClient
 		public void ClearChanges()
 		{
 			_hasChanges = false;
+		}
+
+		public bool IsWalkable(Position pos, IEnumerable<Position> blocked)
+		{
+			var value = (TileFlags)GetPositionValue(pos);
+			if (value == TileFlags.UNKNOWN) return true;
+			if (blocked.Any(x => x.Equals(pos))) return false;
+			if (value == TileFlags.NOTHING) return false;
+			if ((value & (TileFlags.PERIMETER | TileFlags.BLOCKED)) > 0) return false;
+			return true;
 		}
 	}
 }

@@ -6,14 +6,7 @@ namespace ApiClient
 {
 	public class PathFinder
 	{
-		private readonly Map _map;
-
-		public PathFinder(Map map)
-		{
-			_map = map;
-		}
-
-		public IEnumerable<Position> CalculatePath(Position start, Position end, IEnumerable<Position> blocked)
+		public static IEnumerable<Position> CalculatePath(Position start, Position end, Func<Position, bool> isWalkable)
 		{
 			var startNode = new Node(null, start);
 
@@ -42,59 +35,26 @@ namespace ApiClient
 					}
 				}
 
-				foreach (var neighbor in GetNeighbours(closestNode.Position, blocked))
+				var walkableNeighbours = closestNode.Position.GetNeighbours().Where(isWalkable);
+
+				foreach (var neighbour in walkableNeighbours)
 				{
-					if (aStar.Contains(neighbor)) continue;
+					if (aStar.Contains(neighbour)) continue;
 
-					var distanceToGoal = closestNode.DistanceToGoal + GetDistance(neighbor, closestNode.Position);
-					var distanceFromStart = distanceToGoal + GetDistance(neighbor, end);
+					var distanceToGoal = closestNode.DistanceToGoal + neighbour.Distance(closestNode.Position);
+					var distanceFromStart = distanceToGoal + neighbour.Distance(end);
 
-					open.Add(new Node(closestNode, neighbor)
+					open.Add(new Node(closestNode, neighbour)
 					{
 						DistanceToGoal = distanceToGoal,
 						DistanceFromStart = distanceFromStart
 					});
 
-					aStar.Add(neighbor);
+					aStar.Add(neighbour);
 				}
 			}
 
 			return result;
-		}
-
-		private IEnumerable<Position> GetNeighbours(Position position, IEnumerable<Position> blocked)
-		{
-			var n = position.Y - 1;
-			var s = position.Y + 1;
-			var e = position.X + 1;
-			var w = position.X - 1;
-
-			var neighbours = new[]
-			{
-				new Position(position.X, n),
-				new Position(e, position.Y),
-				new Position(position.X, s),
-				new Position(w, position.Y),
-				new Position(e, n),
-				new Position(e, s),
-				new Position(w, n),
-				new Position(w, s)
-			};
-
-			return neighbours.Where(CanWalkHere).Where(pos => !blocked.Any(b => b.Equals(pos)));
-		}
-
-		private bool CanWalkHere(Position pos)
-		{
-			var value = (TileFlags)_map.GetPositionValue(pos);
-			if (value == TileFlags.NOTHING) return false;
-			if ((value & (TileFlags.PERIMETER | TileFlags.BLOCKED)) > 0) return false;
-			return true;
-		}
-
-		private static int GetDistance(Position from, Position to)
-		{
-			return Math.Max(Math.Abs(from.X - to.X), Math.Abs(from.Y - to.Y));
 		}
 
 		private class Node
