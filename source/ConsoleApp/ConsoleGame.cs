@@ -213,6 +213,7 @@ namespace ConsoleApp
 		{
 			switch (key.Key)
 			{
+				case ConsoleKey.X:
 				case ConsoleKey.Spacebar:
 					_context.MovePlayer(player.Id, _context.GetNextDirectionForPlayer(player.Id));
 					break;
@@ -236,6 +237,9 @@ namespace ConsoleApp
 					break;
 				case ConsoleKey.F:
 					QuaffPotion(player);
+					break;
+				case ConsoleKey.G:
+ 					QuickGaseous(player);
 					break;
 				case ConsoleKey.OemPlus:
 					AllocatePoints(player);
@@ -306,14 +310,30 @@ namespace ConsoleApp
 
 		private void QuickHeal(Character player)
 		{
-			var healingPotion = player.Inventory
-				.Select(x => _context.GetInfoFor(x))
-				.FirstOrDefault(IsHealingPotion);
+			QuickQuaff(player, IsHealingPotion);
+		}
 
-			if (healingPotion != null)
+		private void QuickGaseous(Character player)
+		{
+			QuickQuaff(player, IsGaseousPotion);
+		}
+
+		private void QuickQuaff(Character player, Func<ItemInfo, bool> predicate)
+		{
+			var potion = player.Inventory
+			                   .Select(x => _context.GetInfoFor(x))
+			                   .FirstOrDefault(predicate);
+
+			if (potion != null)
 			{
-				AddResponseMessage(_client.Quaff(healingPotion.Id, player.Id));
+				AddResponseMessage(_client.Quaff(potion.Id, player.Id));
 			}
+		}
+
+		private static bool IsGaseousPotion(ItemInfo itemInfo)
+		{
+			return itemInfo.SubType == "potion" && 
+				itemInfo.Name.ToLowerInvariant().Contains("gaseous");
 		}
 
 		private static bool IsHealingPotion(ItemInfo itemInfo)
