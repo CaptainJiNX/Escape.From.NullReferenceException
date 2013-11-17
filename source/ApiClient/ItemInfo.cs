@@ -16,5 +16,20 @@ namespace ApiClient
 		public int? ArmorClass { get; set; }
 		public int? Speed { get; set; }
 		// "special":null
+
+		public bool IsPotion
+		{
+			get { return SubType == "potion"; }
+		}
+
+		public bool IsGaseousPotion
+		{
+			get { return IsPotion && Name.ToLowerInvariant().Contains("gaseous"); }
+		}
+
+		public bool IsHealingPotion
+		{
+			get { return IsPotion && Name.ToLowerInvariant().Contains("healing"); }
+		}
 	}
 }

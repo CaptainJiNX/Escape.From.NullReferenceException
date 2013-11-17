@@ -237,7 +237,10 @@ namespace ConsoleApp
 					_context.QuaffPotion(player.Id, SelectFromInventory("Quaff", player));
 					break;
 				case ConsoleKey.G:
-					QuickQuaff(player, IsGaseousPotion);
+					QuickQuaff(player, x => x.IsGaseousPotion);
+					break;
+				case ConsoleKey.H:
+					QuickQuaff(player, x => x.IsHealingPotion);
 					break;
 				case ConsoleKey.OemPlus:
 					IncreaseAttribute(player);
@@ -268,9 +271,6 @@ namespace ConsoleApp
 					var command = CreateTextInputPopup("What would you like do do?", "Type command:");
 					HandleCommand(command);
 					break;
-				case ConsoleKey.H:
-					QuickQuaff(player, IsHealingPotion);
-					break;
 				default:
 					var direction = GetPlayerDirection(key.Key);
 
@@ -292,7 +292,7 @@ namespace ConsoleApp
 								_currentPlayerId = _player3Id;
 								break;
 							case '0':
-								_context.SetDefenseMode(_currentPlayerId);
+								_context.RemoveAttackMode(_currentPlayerId);
 								break;
 							case '9':
 								_context.SetAttackMode(_currentPlayerId);
@@ -313,18 +313,6 @@ namespace ConsoleApp
 			{
 				_context.QuaffPotion(player.Id, potion.Id);
 			}
-		}
-
-		private static bool IsGaseousPotion(ItemInfo itemInfo)
-		{
-			return itemInfo.SubType == "potion" && 
-				itemInfo.Name.ToLowerInvariant().Contains("gaseous");
-		}
-
-		private static bool IsHealingPotion(ItemInfo itemInfo)
-		{
-			return itemInfo.SubType == "potion" && 
-				itemInfo.Name.ToLowerInvariant().Contains("healing");
 		}
 
 		private static IEnumerable<Position> GetAllVisibleItemPositions(Character player)

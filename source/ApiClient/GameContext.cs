@@ -18,6 +18,7 @@ namespace ApiClient
 		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
 		private readonly Dictionary<string, Position> _goals = new Dictionary<string, Position>();
 		private readonly HashSet<string> _attackingPlayers = new HashSet<string>(); 
+		private readonly HashSet<string> _gaseousPlayers = new HashSet<string>(); 
 
 		private static readonly Character NullCharacter = new Character
 		{
@@ -85,23 +86,78 @@ namespace ApiClient
 		public void Move(string playerId, Direction dir)
 		{
 			if (dir == Direction.None) return;
-			Update(playerId, _client.Move(playerId, dir));
+			var moveResult = _client.Move(playerId, dir);
+
+			if (moveResult.Error != null)
+			{
+				AddMessage(moveResult.Error);
+				return;
+			}
+
+			if (PlayerIsGaseous(playerId))
+			{
+				var player = GetPlayer(playerId);
+				var map = GetOrAddMap(player.CurrentMap);
+				var expectedPosition = GetNextPosition(player.Position, dir);
+
+				if (GaseousPlayerCanWalkHere(player, map, expectedPosition) && !moveResult.MoveSucceeded)
+				{
+					RemoveGaseousMode(playerId);
+				}
+			}
+
+			Update(playerId, moveResult);
+		}
+
+		private Position GetNextPosition(Position pos, Direction dir)
+		{
+			return pos.GetNeighbours().FirstOrDefault(next => GetDirection(pos, next) == dir);
 		}
 
 		public void SetAttackMode(string playerId)
 		{
 			if(String.IsNullOrEmpty(playerId)) return;
-			if (_attackingPlayers.Contains(playerId)) return;
+			if (PlayerHasAttackMode(playerId)) return;
 			_attackingPlayers.Add(playerId);
-			AddMessage(String.Format("[{0}] is now attacking.", playerId));
+			var player = GetPlayer(playerId);
+			AddMessage(String.Format("{0} [{1}] is now attacking.", player.Name, player.Id));
 		}
 
-		public void SetDefenseMode(string playerId)
+		private bool PlayerHasAttackMode(string playerId)
+		{
+			return _attackingPlayers.Contains(playerId);
+		}
+
+		private bool PlayerIsGaseous(string playerId)
+		{
+			return _gaseousPlayers.Contains(playerId);
+		}
+
+		public void RemoveAttackMode(string playerId)
 		{
 			if (String.IsNullOrEmpty(playerId)) return;
-			if (!_attackingPlayers.Contains(playerId)) return;
+			if (!PlayerHasAttackMode(playerId)) return;
 			_attackingPlayers.Remove(playerId);
-			AddMessage(String.Format("[{0}] is now avoiding monsters.", playerId));
+			var player = GetPlayer(playerId);
+			AddMessage(String.Format("{0} [{1}] is now avoiding monsters.", player.Name, player.Id));
+		}
+
+		public void SetGaseousMode(string playerId)
+		{
+			if(String.IsNullOrEmpty(playerId)) return;
+			if (PlayerIsGaseous(playerId)) return;
+			_gaseousPlayers.Add(playerId);
+			var player = GetPlayer(playerId);
+			AddMessage(String.Format("{0} [{1}] can now walk through walls.", player.Name, player.Id));
+		}
+
+		public void RemoveGaseousMode(string playerId)
+		{
+			if (String.IsNullOrEmpty(playerId)) return;
+			if (!PlayerIsGaseous(playerId)) return;
+			_gaseousPlayers.Remove(playerId);
+			var player = GetPlayer(playerId);
+			AddMessage(String.Format("{0} [{1}] can not walk through walls anymore...", player.Name, player.Id));
 		}
 
 		public void SetGoalForPlayer(string playerId, Position goal)
@@ -128,11 +184,19 @@ namespace ApiClient
 			return _goals.TryGetValue(playerId, out goal) ? goal : null;
 		}
 
+		private bool GaseousPlayerCanWalkHere(Character player, Map map, Position pos)
+		{
+			var entities = player.VisibleEntities.Where(item => item.Id != player.Id);
+			var boulders = player.VisibleItems.Where(item => GetInfoFor(item.Id).SubType == "boulder");
+			var blocked = entities.Concat(boulders).Select(item => new Position(item.XPos, item.YPos));
+			return !blocked.Any(x => x.Equals(pos));
+		}
+
 		private bool PlayerCanWalkHere(Character player, Map map, Position pos)
 		{
 			var entities = player.VisibleEntities.Where(item => item.Id != player.Id);
 
-			if (_attackingPlayers.Contains(player.Id))
+			if (PlayerHasAttackMode(player.Id))
 			{
 				entities = entities.Where(x => x.Type != "monster");
 			}
@@ -140,7 +204,7 @@ namespace ApiClient
 			var boulders = player.VisibleItems.Where(item => GetInfoFor(item.Id).SubType == "boulder");
 			var blocked = entities.Concat(boulders).Select(item => new Position(item.XPos, item.YPos));
 
-			return !blocked.Any(x => x.Equals(pos)) && map.IsWalkable(pos);
+			return !blocked.Any(x => x.Equals(pos)) && (PlayerIsGaseous(player.Id) || map.IsWalkable(pos));
 		}
 
 		public Direction GetNextDirectionForPlayer(string playerId)
@@ -332,6 +396,12 @@ namespace ApiClient
 		public void QuaffPotion(string playerId, string itemId)
 		{
 			if (String.IsNullOrEmpty(itemId)) return;
+			
+			if (GetInfoFor(itemId).IsGaseousPotion)
+			{
+				SetGaseousMode(playerId);
+			}
+
 			AddResponseMessage(_client.Quaff(itemId, playerId));
 		}
 

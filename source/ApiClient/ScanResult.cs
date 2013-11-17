@@ -41,6 +41,11 @@ namespace ApiClient
 		public ScanUpdate[] Updates { get; set; }
 		public string Error { get; set; }
 
+		[JsonIgnore]
+		public Position MovedTo { get; set; }
+		[JsonIgnore]
+		public bool MoveSucceeded { get; set; }
+
 		public IEnumerable<Tuple<Position, uint>> ConvertAreaToPositions()
 		{
 			if (VisibleArea == null) yield break;

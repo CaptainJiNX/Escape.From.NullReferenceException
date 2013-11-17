@@ -80,7 +80,21 @@ namespace ApiClient
 
 		public ScanResult Move(string charId, Direction direction)
 		{
-			return RunCommand("move", charId, direction.ToString().ToLowerInvariant()).ToObject<ScanResult>();
+			var result = RunCommand("move", charId, direction.ToString().ToLowerInvariant());
+			var scanResult = result.ToObject<ScanResult>();
+
+			var success = result["success"];
+			if (success != null && success.HasValues)
+			{
+				var movedTo = success["movedto"];
+				if (movedTo != null)
+				{
+					scanResult.MoveSucceeded = true;
+					scanResult.MovedTo = new Position(movedTo.Value<int>("x"), movedTo.Value<int>("y"));
+				}
+			}
+
+			return scanResult;
 		}
 
 		public JObject Planeshift(string charId, string planeName)
