@@ -110,6 +110,21 @@ namespace ApiClient
 
 		public void Update(ScanResult result)
 		{
+			if (result.Updates != null)
+			{
+				var charUpdate = result.Updates
+									   .Where(x => x.Character != null)
+									   .LastOrDefault(x => x.Character.Id == Id);
+				if (charUpdate != null)
+				{
+					Update(charUpdate.Character);
+				}
+
+				var inventoryUpdate = result.Updates.LastOrDefault(x => x.Inventory != null);
+				if (inventoryUpdate != null) Inventory = inventoryUpdate.Inventory;
+			}
+
+
 			XPos = result.XPos;
 			YPos = result.YPos;
 			CurrentMap = result.Map;
@@ -117,12 +132,31 @@ namespace ApiClient
 			_visibleItems = result.Items;
 			_visibleEntities = result.Entities;
 			_visibleArea = result.ConvertAreaToPositions().Select(x => x.Item1);
+		}
 
-			if (result.Updates != null)
-			{
-				var update = result.Updates.LastOrDefault(x => x.Inventory != null);
-				if (update != null) Inventory = update.Inventory;
-			}
+		private void Update(Character uc)
+		{
+			ArmorClass = uc.ArmorClass;
+			_hitPoints = uc._hitPoints;
+
+			Strength = uc.Strength;
+			Dexterity = uc.Dexterity;
+			Constitution = uc.Constitution;
+			Intelligence = uc.Intelligence;
+			Wisdom = uc.Wisdom;
+
+			Experience = uc.Experience;
+			Level = uc.Level;
+
+			Light = uc.Light;
+			Speed = uc.Speed;
+
+			EquippedArmorId = uc.EquippedArmorId;
+			EquippedArmorName = uc.EquippedArmorName;
+			WieldedWeaponId = uc.WieldedWeaponId;
+			WieldedWeaponName = uc.WieldedWeaponName;
+
+			PointsToAllocate = uc.PointsToAllocate;
 		}
 	}
 }

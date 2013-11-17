@@ -279,6 +279,11 @@ namespace ApiClient
 		{
 			if (scanResult.Error != null)
 			{
+				if (scanResult.Error == "Unable to find character object")
+				{
+					_currentParty.Remove(playerId);
+				}
+
 				AddMessage(scanResult.Error);
 				return;
 			}
@@ -340,18 +345,6 @@ namespace ApiClient
 
 		private Character UpdatePlayer(string playerId, ScanResult result)
 		{
-			if (result.Updates != null)
-			{
-				var update = result.Updates
-				                       .Where(x => x.Character != null)
-				                       .LastOrDefault(x => x.Character.Id == playerId);
-
-				if (update != null)
-				{
-					_currentParty[playerId] = update.Character;
-				}
-			}
-
 			var player = GetPlayer(playerId);
 			player.Update(result);
 			return player;
