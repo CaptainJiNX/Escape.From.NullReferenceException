@@ -216,6 +216,9 @@ namespace ConsoleApp
 				case ConsoleKey.Spacebar:
 					_context.Move(player.Id, _context.GetNextDirectionForPlayer(player.Id));
 					break;
+				case ConsoleKey.Y:
+					_context.Scout(player.Id);
+					break;
 				case ConsoleKey.P:
 					_context.PickUpItem(player.Id);
 					break;

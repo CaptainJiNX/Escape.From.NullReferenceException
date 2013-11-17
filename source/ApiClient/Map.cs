@@ -63,5 +63,46 @@ namespace ApiClient
 			if ((value & (TileFlags.PERIMETER | TileFlags.BLOCKED)) > 0) return false;
 			return true;
 		}
+
+		public Position MinPos
+		{
+			get
+			{
+				return new Position(AllPositions.Min(pos => pos.X), AllPositions.Min(pos => pos.Y));
+			}
+		}
+
+		public Position MaxPos
+		{
+			get
+			{
+				return new Position(AllPositions.Max(pos => pos.X), AllPositions.Max(pos => pos.Y));
+			}
+		}
+
+		public IEnumerable<Position> AllUnknownPositions
+		{
+			get
+			{
+				for (var y = Math.Max(0, MinPos.Y - 1); y <= MaxPos.Y + 1; y++)
+				{
+					for (var x = Math.Max(0, MinPos.X); x <= MaxPos.X; x++)
+					{
+						var pos = new Position(x, y);
+						if (GetPositionValue(pos) == uint.MaxValue)
+						{
+							yield return pos;
+						}
+					}
+				}
+			}
+		}
+
+		public Position GetClosestUnknownPosition(Position fromPos, Func<Position, bool> predicate)
+		{
+			return AllUnknownPositions
+				.OrderBy(fromPos.Distance)
+				.FirstOrDefault(predicate);
+		}
 	}
 }

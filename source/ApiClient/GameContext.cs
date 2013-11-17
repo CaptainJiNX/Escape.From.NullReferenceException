@@ -95,9 +95,23 @@ namespace ApiClient
 			Update(playerId, _client.Scan(playerId));
 		}
 
+		public void Scout(string playerId)
+		{
+			if (string.IsNullOrEmpty(playerId)) return;
+			var player = GetPlayer(playerId);
+			var map = GetOrAddMap(player.CurrentMap);
+
+			var nextPos = map.GetClosestUnknownPosition(
+				player.Position,
+				pos => PathFinder.CalculatePath(player.Position, pos, p => PlayerCanWalkHere(player, map, p)).Any());
+
+			_goals[player.Id] = nextPos;
+			Move(playerId, GetNextDirectionForPlayer(playerId));
+		}
+
 		public void Move(string playerId, Direction dir)
 		{
-			if (dir == Direction.None) return;
+			if (string.IsNullOrEmpty(playerId) || dir == Direction.None) return;
 			var moveResult = _client.Move(playerId, dir);
 
 			if (moveResult.Error != null)
@@ -112,7 +126,7 @@ namespace ApiClient
 				var map = GetOrAddMap(player.CurrentMap);
 				var expectedPosition = GetNextPosition(player.Position, dir);
 
-				if (GaseousPlayerCanWalkHere(player, map, expectedPosition) && !moveResult.MoveSucceeded)
+				if (GaseousPlayerCanWalkHere(player, expectedPosition) && !moveResult.MoveSucceeded)
 				{
 					RemoveGaseousMode(playerId);
 				}
@@ -196,7 +210,7 @@ namespace ApiClient
 			return _goals.TryGetValue(playerId ?? string.Empty, out goal) ? goal : null;
 		}
 
-		private bool GaseousPlayerCanWalkHere(Character player, Map map, Position pos)
+		private bool GaseousPlayerCanWalkHere(Character player, Position pos)
 		{
 			var entities = player.VisibleEntities.Where(item => item.Id != player.Id);
 			var boulders = player.VisibleItems.Where(item => GetInfoFor(item.Id).SubType == "boulder");
