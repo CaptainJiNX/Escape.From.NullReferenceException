@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
 
 namespace ApiClient
 {
@@ -81,7 +82,7 @@ namespace ApiClient
 			Update(playerId, _client.Scan(playerId));
 		}
 
-		public void MovePlayer(string playerId, Direction dir)
+		public void Move(string playerId, Direction dir)
 		{
 			if (dir == Direction.None) return;
 			Update(playerId, _client.Move(playerId, dir));
@@ -89,18 +90,18 @@ namespace ApiClient
 
 		public void SetAttackMode(string playerId)
 		{
-			if(string.IsNullOrEmpty(playerId)) return;
+			if(String.IsNullOrEmpty(playerId)) return;
 			if (_attackingPlayers.Contains(playerId)) return;
 			_attackingPlayers.Add(playerId);
-			AddMessage(string.Format("[{0}] is now attacking.", playerId));
+			AddMessage(String.Format("[{0}] is now attacking.", playerId));
 		}
 
 		public void SetDefenseMode(string playerId)
 		{
-			if (string.IsNullOrEmpty(playerId)) return;
+			if (String.IsNullOrEmpty(playerId)) return;
 			if (!_attackingPlayers.Contains(playerId)) return;
 			_attackingPlayers.Remove(playerId);
-			AddMessage(string.Format("[{0}] is now avoiding monsters.", playerId));
+			AddMessage(String.Format("[{0}] is now avoiding monsters.", playerId));
 		}
 
 		public void SetGoalForPlayer(string playerId, Position goal)
@@ -109,7 +110,7 @@ namespace ApiClient
 
 			var player = GetPlayer(playerId);
 			_goals[player.Id] = goal;
-			AddMessage(string.Format("New goal for player {0} [{1}] set to ({2},{3})", player.Name, player.Id, goal.X, goal.Y));
+			AddMessage(String.Format("New goal for player {0} [{1}] set to ({2},{3})", player.Name, player.Id, goal.X, goal.Y));
 		}
 
 		private void RemoveGoalForPlayer(string playerId)
@@ -118,7 +119,7 @@ namespace ApiClient
 
 			var player = GetPlayer(playerId);
 			_goals.Remove(playerId);
-			AddMessage(string.Format("Removed goal for player {0} [{1}]", player.Name, player.Id));
+			AddMessage(String.Format("Removed goal for player {0} [{1}]", player.Name, player.Id));
 		}
 
 		public Position GetGoalForPlayer(string playerId)
@@ -223,7 +224,7 @@ namespace ApiClient
 					if (update.Message == null) continue;
 					var match = Regex.Match(update.Message, "\\[" + playerId + "\\]\\sscored\\sa\\shit\\s\\[damage\\s(?<damage>\\d+)\\]");
 					if (!match.Success) continue;
-					var damage = int.Parse(match.Groups["damage"].Captures[0].Value);
+					var damage = Int32.Parse(match.Groups["damage"].Captures[0].Value);
 					var stats = new DamageStatistics(player.WieldedWeaponName, damage, player.Strength, player.Level);
 					_damageStorage.Store(stats);
 				}
@@ -236,7 +237,7 @@ namespace ApiClient
 
 		public Character GetPlayer(string playerId)
 		{
-			if (string.IsNullOrEmpty(playerId)) return NullCharacter;
+			if (String.IsNullOrEmpty(playerId)) return NullCharacter;
 			Character player;
 			return _currentParty.TryGetValue(playerId, out player) ? player : NullCharacter;
 		}
@@ -269,9 +270,9 @@ namespace ApiClient
 			}
 		}
 
-		public void AddMessage(string message)
+		private void AddMessage(string message)
 		{
-			if (!string.IsNullOrEmpty(message) && _messageLog.FirstOrDefault() != message)
+			if (!String.IsNullOrEmpty(message) && _messageLog.FirstOrDefault() != message)
 			{
 				_messageLog.AddFirst(message);
 			}
@@ -279,7 +280,7 @@ namespace ApiClient
 
 		public Map GetMap(string mapName)
 		{
-			if (string.IsNullOrEmpty(mapName)) return _currentMaps.Values.First();
+			if (String.IsNullOrEmpty(mapName)) return _currentMaps.Values.First();
 			Map map;
 			return _currentMaps.TryGetValue(mapName, out map) ? map : null;
 		}
@@ -312,6 +313,82 @@ namespace ApiClient
 			}
 
 			return itemInfo;
+		}
+
+		public void AddResponseMessage(JObject response)
+		{
+			var message = (response["success"] ?? response["error"]);
+			if (message != null)
+			{
+				AddMessage(message.ToObject<string>());
+			}
+		}
+
+		public void IncreaseAttribute(string playerId, Attribute attribute)
+		{
+			AddResponseMessage(_client.AllocatePoints(attribute, playerId));
+		}
+
+		public void QuaffPotion(string playerId, string itemId)
+		{
+			if (String.IsNullOrEmpty(itemId)) return;
+			AddResponseMessage(_client.Quaff(itemId, playerId));
+		}
+
+		public void PickUpItem(string playerId)
+		{
+			AddResponseMessage(_client.Get(playerId));
+		}
+
+		public void MoveUp(string playerId)
+		{
+			AddResponseMessage(_client.LevelUp(playerId));
+		}
+
+		public void MoveDown(string playerId)
+		{
+			AddResponseMessage(_client.LevelDown(playerId));
+		}
+
+		public void Planeshift(string playerId, string plane)
+		{
+			if (String.IsNullOrEmpty(plane)) return;
+			AddResponseMessage(_client.Planeshift(playerId, plane));
+		}
+
+		public HighScoreList GetHighScores()
+		{
+			return _client.GetHighScores();
+		}
+
+		public void WieldWeapon(string playerId, string itemId)
+		{
+			if (String.IsNullOrEmpty(itemId)) return;
+			AddResponseMessage(_client.Wield(itemId, playerId));
+		}
+
+		public void DropItem(string playerId, string itemId)
+		{
+			if (String.IsNullOrEmpty(itemId)) return;
+			AddResponseMessage(_client.Drop(itemId, playerId));
+		}
+
+		public void UnwieldWeapon(string playerId, string itemId)
+		{
+			if (String.IsNullOrEmpty(itemId)) return;
+			AddResponseMessage(_client.Unwield(itemId, playerId));
+		}
+
+		public void EquipArmor(string playerId, string itemId)
+		{
+			if (String.IsNullOrEmpty(itemId)) return;
+			AddResponseMessage(_client.Equip(itemId, playerId));
+		}
+
+		public void UnequipArmor(string playerId, string itemId)
+		{
+			if (String.IsNullOrEmpty(itemId)) return;
+			AddResponseMessage(_client.Unequip(itemId, playerId));
 		}
 	}
 }

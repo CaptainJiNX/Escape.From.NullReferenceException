@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using ApiClient;
-using Newtonsoft.Json.Linq;
 using Attribute = ApiClient.Attribute;
 
 namespace ConsoleApp
 {
 	class ConsoleGame
 	{
-		private readonly IClientWrapper _client;
 		private readonly GameContext _context;
 		private string _currentPlayerId;
 		private string _player1Id;
@@ -21,8 +19,8 @@ namespace ConsoleApp
 
 		public ConsoleGame()
 		{
-			_client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
-			_context = new GameContext(_client, new BinaryMapStorage(), new DamageStatisticsStorage());
+			var client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
+			_context = new GameContext(client, new BinaryMapStorage(), new DamageStatisticsStorage());
 			_console2 = new Console2(120, 41, ConsoleColor.DarkRed);
 		}
 
@@ -215,47 +213,44 @@ namespace ConsoleApp
 			{
 				case ConsoleKey.X:
 				case ConsoleKey.Spacebar:
-					_context.MovePlayer(player.Id, _context.GetNextDirectionForPlayer(player.Id));
+					_context.Move(player.Id, _context.GetNextDirectionForPlayer(player.Id));
 					break;
 				case ConsoleKey.P:
-					AddResponseMessage(_client.Get(player.Id));
+					_context.PickUpItem(player.Id);
 					break;
 				case ConsoleKey.O:
-					DropItem(player);
+					_context.DropItem(player.Id, SelectFromInventory("Drop", player));
 					break;
 				case ConsoleKey.V:
-					WieldWeapon(player);
+					_context.WieldWeapon(player.Id, SelectFromInventory("Wield", player));
 					break;
 				case ConsoleKey.R:
-					EquipArmor(player);
+					_context.EquipArmor(player.Id, SelectFromInventory("Equip", player));
 					break;
 				case ConsoleKey.T:
-					UnequipArmor(player);
+					_context.UnequipArmor(player.Id, player.EquippedArmorId);
 					break;
 				case ConsoleKey.B:
-					UnwieldWeapon(player);
+					_context.UnwieldWeapon(player.Id, player.WieldedWeaponId);
 					break;
 				case ConsoleKey.F:
-					QuaffPotion(player);
+					_context.QuaffPotion(player.Id, SelectFromInventory("Quaff", player));
 					break;
 				case ConsoleKey.G:
- 					QuickGaseous(player);
+					QuickQuaff(player, IsGaseousPotion);
 					break;
 				case ConsoleKey.OemPlus:
-					AllocatePoints(player);
+					IncreaseAttribute(player);
 					break;
 				case ConsoleKey.U:
-					AddResponseMessage(_client.LevelUp(player.Id));
+					_context.MoveUp(player.Id);
 					break;
 				case ConsoleKey.N:
-					AddResponseMessage(_client.LevelDown(player.Id));
+					_context.MoveDown(player.Id);
 					break;
 				case ConsoleKey.J:
 					var plane = CreateTextInputPopup("Planeshift", "Shift to plane:");
-					if (!string.IsNullOrEmpty(plane))
-					{
-						AddResponseMessage(_client.Planeshift(player.Id, plane));
-					}
+					_context.Planeshift(player.Id, plane);
 					break;
 				case ConsoleKey.I:
 					CreateMessagePopup("Visible Items",
@@ -274,14 +269,14 @@ namespace ConsoleApp
 					HandleCommand(command);
 					break;
 				case ConsoleKey.H:
-					QuickHeal(player);
+					QuickQuaff(player, IsHealingPotion);
 					break;
 				default:
 					var direction = GetPlayerDirection(key.Key);
 
 					if (direction != Direction.None)
 					{
-						_context.MovePlayer(_currentPlayerId, direction);
+						_context.Move(_currentPlayerId, direction);
 					}
 					else
 					{
@@ -308,16 +303,6 @@ namespace ConsoleApp
 			}
 		}
 
-		private void QuickHeal(Character player)
-		{
-			QuickQuaff(player, IsHealingPotion);
-		}
-
-		private void QuickGaseous(Character player)
-		{
-			QuickQuaff(player, IsGaseousPotion);
-		}
-
 		private void QuickQuaff(Character player, Func<ItemInfo, bool> predicate)
 		{
 			var potion = player.Inventory
@@ -326,7 +311,7 @@ namespace ConsoleApp
 
 			if (potion != null)
 			{
-				AddResponseMessage(_client.Quaff(potion.Id, player.Id));
+				_context.QuaffPotion(player.Id, potion.Id);
 			}
 		}
 
@@ -442,13 +427,13 @@ namespace ConsoleApp
 
 		private void ShowHighScores()
 		{
-			var highScores = _client.GetHighScores();
+			var highScores = _context.GetHighScores();
 			var messages = highScores.Scores.SelectMany(s => new[]
 			{
 				string.Format("{0}: {1}, {2} and {3}", s.Score, s.Name, s.Weapon, s.Armor),
-				string.Format("   ({0})", s.Info)
+				!string.IsNullOrEmpty(s.Info) ? string.Format("   ({0})", s.Info) : null
 			});
-			CreateMessagePopup("<-- Wall of fame -->", messages.ToArray());
+			CreateMessagePopup("<-- Wall of fame -->", messages.Where(x => x != null).ToArray());
 		}
 
 		private void FindPosition(TileFlags tileToFind)
@@ -631,60 +616,11 @@ namespace ConsoleApp
 			return string.Format("{0} ({1},{2})", map.Name, player.XPos, player.YPos);
 		}
 
-		private void WieldWeapon(Character player)
-		{
-			var itemId = SelectFromInventory("Wield", player);
-			if (itemId == null) return;
-			AddResponseMessage(_client.Wield(itemId, player.Id));
-		}
-
-		private void DropItem(Character player)
-		{
-			var itemId = SelectFromInventory("Drop", player);
-			if (itemId == null) return;
-			AddResponseMessage(_client.Drop(itemId, player.Id));
-		}
-
-		private void UnwieldWeapon(Character player)
-		{
-			if (player.WieldedWeaponId == null) return;
-			AddResponseMessage(_client.Unwield(player.WieldedWeaponId, player.Id));
-		}
-
-		private void EquipArmor(Character player)
-		{
-			var itemId = SelectFromInventory("Equip", player);
-			if (itemId == null) return;
-			AddResponseMessage(_client.Equip(itemId, player.Id));
-		}
-
-		private void UnequipArmor(Character player)
-		{
-			if (player.EquippedArmorId == null) return;
-			AddResponseMessage(_client.Unequip(player.EquippedArmorId, player.Id));
-		}
-
-		private void QuaffPotion(Character player)
-		{
-			var itemId = SelectFromInventory("Quaff", player);
-			if (itemId == null) return;
-			AddResponseMessage(_client.Quaff(itemId, player.Id));
-		}
-
-		private void AllocatePoints(Character player)
+		private void IncreaseAttribute(Character player)
 		{
 			var attr = SelectFromAttributes(player);
 			if (attr == null) return;
-			AddResponseMessage(_client.AllocatePoints((Attribute) Enum.Parse(typeof(Attribute), attr, true) , player.Id));
-		}
-
-		private void AddResponseMessage(JObject response)
-		{
-			var message = (response["success"] ?? response["error"]);
-			if (message != null)
-			{
-				_context.AddMessage(message.ToObject<string>());
-			}
+			_context.IncreaseAttribute(player.Id, (Attribute) Enum.Parse(typeof (Attribute), attr, true));
 		}
 
 		private string SelectFromInventory(string action, Character player)
