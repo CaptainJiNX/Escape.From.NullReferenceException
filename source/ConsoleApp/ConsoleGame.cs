@@ -16,6 +16,7 @@ namespace ConsoleApp
 		private string _player3Id;
 		private readonly Console2 _console2;
 		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
+		private static readonly string[] PlayerNames = new[] { "JiNX the first", "JiNX the second", "JiNX the third" };
 
 		public ConsoleGame()
 		{
@@ -270,6 +271,9 @@ namespace ConsoleApp
 				case ConsoleKey.OemMinus:
 					var command = CreateTextInputPopup("What would you like do do?", "Type command:");
 					HandleCommand(command);
+					break;
+				case ConsoleKey.M:
+					InitPlayers();
 					break;
 				default:
 					var direction = GetPlayerDirection(key.Key);
@@ -697,12 +701,20 @@ namespace ConsoleApp
 
 		private void InitPlayers()
 		{
-			_player1Id = _context.Party.FirstOrDefault() ??
-				_context.CreateNewCharacter("JiNX the first", 14, 14, 10, 10, 10);
-			_player2Id = _context.Party.Skip(1).FirstOrDefault() ??
-				_context.CreateNewCharacter("JiNX the second", 14, 10, 14, 10, 10);
-			_player3Id = _context.Party.Skip(2).FirstOrDefault() ??
-				_context.CreateNewCharacter("JiNX the third", 10, 10, 18, 10, 10);
+			var invalidPlayers = _context.Party.Where(x => !PlayerNames.Any(p => x.Name.StartsWith(p))).ToList();
+
+			foreach (var player in invalidPlayers)
+			{
+				_context.DeleteCharacter(player.Id);
+			}
+
+			var player1 = _context.Party.FirstOrDefault(x => x.Name.StartsWith(PlayerNames[0]));
+			var player2 = _context.Party.FirstOrDefault(x => x.Name.StartsWith(PlayerNames[1]));
+			var player3 = _context.Party.FirstOrDefault(x => x.Name.StartsWith(PlayerNames[2]));
+
+			_player1Id = (player1 ?? _context.CreateNewCharacter(PlayerNames[0], 14, 14, 10, 10, 10)).Id;
+			_player2Id = (player2 ?? _context.CreateNewCharacter(PlayerNames[1], 14, 10, 14, 10, 10)).Id;
+			_player3Id = (player3 ?? _context.CreateNewCharacter(PlayerNames[2], 10, 14, 14, 10, 10)).Id;
 
 			_currentPlayerId = _player1Id;
 		}

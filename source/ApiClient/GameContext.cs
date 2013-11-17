@@ -55,9 +55,9 @@ namespace ApiClient
 			}
 		}
 
-		public IEnumerable<string> Party
+		public IEnumerable<Character> Party
 		{
-			get { return _currentParty.Keys; }
+			get { return _currentParty.Keys.Select(GetPlayer); }
 		}
 
 		public IEnumerable<string> Messages
@@ -65,7 +65,19 @@ namespace ApiClient
 			get { return _messageLog; }
 		}
 
-		public string CreateNewCharacter(string name, int str, int con, int dex, int @int, int wis)
+		public void DeleteCharacter(string playerId)
+		{
+			var response = _client.DeleteCharacter(playerId);
+
+			if (response["error"] != null)
+			{
+				_currentParty.Remove(playerId);
+			}
+
+			AddResponseMessage(response);
+		}
+
+		public Character CreateNewCharacter(string name, int str, int con, int dex, int @int, int wis)
 		{
 			var character = _client.CreateCharacter(name, str, con, dex, @int, wis);
 			if (character.Error != null)
@@ -75,7 +87,7 @@ namespace ApiClient
 			}
 
 			_currentParty.Add(character.Id, character);
-			return character.Id;
+			return character;
 		}
 
 		public void Scan(string playerId)
@@ -181,7 +193,7 @@ namespace ApiClient
 		public Position GetGoalForPlayer(string playerId)
 		{
 			Position goal;
-			return _goals.TryGetValue(playerId, out goal) ? goal : null;
+			return _goals.TryGetValue(playerId ?? string.Empty, out goal) ? goal : null;
 		}
 
 		private bool GaseousPlayerCanWalkHere(Character player, Map map, Position pos)
@@ -273,6 +285,12 @@ namespace ApiClient
 			if (player.Position.Equals(GetGoalForPlayer(playerId)))
 			{
 				RemoveGoalForPlayer(playerId);
+			}
+
+			if (player.HitPoints <= 0)
+			{
+				AddMessage(string.Format("{0} [{1}] is dead!!! AAArrrghhh!!!", player.Name, player.Id));
+				DeleteCharacter(playerId);
 			}
 		}
 
