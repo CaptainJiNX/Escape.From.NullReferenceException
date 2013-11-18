@@ -12,5 +12,7 @@ namespace ApiClient
 		public int XPos { get; set; }
 		[JsonProperty("y")]
 		public int YPos { get; set; }
+
+		public Position Position { get { return new Position(XPos, YPos); }}
 	}
 }

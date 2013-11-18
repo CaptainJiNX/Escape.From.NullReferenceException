@@ -744,8 +744,8 @@ namespace ConsoleApp
 			var player2 = _context.Party.FirstOrDefault(x => x.Name.StartsWith(PlayerNames[1]));
 			var player3 = _context.Party.FirstOrDefault(x => x.Name.StartsWith(PlayerNames[2]));
 
-			_player1Id = (player1 ?? _context.CreateNewCharacter(PlayerNames[0], 14, 14, 10, 10, 10)).Id;
-			_player2Id = (player2 ?? _context.CreateNewCharacter(PlayerNames[1], 14, 10, 14, 10, 10)).Id;
+			_player1Id = (player1 ?? _context.CreateNewCharacter(PlayerNames[0], 12, 10, 16, 10, 10)).Id;
+			_player2Id = (player2 ?? _context.CreateNewCharacter(PlayerNames[1], 14, 12, 12, 10, 10)).Id;
 			_player3Id = (player3 ?? _context.CreateNewCharacter(PlayerNames[2], 10, 14, 14, 10, 10)).Id;
 
 			_currentPlayerId = _player1Id;

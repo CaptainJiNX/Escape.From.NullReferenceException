@@ -123,7 +123,6 @@ namespace ApiClient
 			if (PlayerIsGaseous(playerId))
 			{
 				var player = GetPlayer(playerId);
-				var map = GetOrAddMap(player.CurrentMap);
 				var expectedPosition = GetNextPosition(player.Position, dir);
 
 				if (GaseousPlayerCanWalkHere(player, expectedPosition) && !moveResult.MoveSucceeded)
@@ -304,7 +303,8 @@ namespace ApiClient
 				_mapStorage.Store(map);
 			}
 
-			StoreDamageStatistics(scanResult, playerId);
+			// Disabled damage stats for now...
+			//StoreDamageStatistics(scanResult, playerId);
 			AddUpdateMessages(scanResult);
 
 			if (player.Position.Equals(GetGoalForPlayer(playerId)))
@@ -318,6 +318,48 @@ namespace ApiClient
 				{
 					QuickQuaff(playerId, x => x.IsHealingPotion);
 				}
+
+
+				// Just some temporary stuff...
+				//------------------------------------------------
+				var numberOfItems = player.Inventory.Length;
+				if (numberOfItems < 10)
+				{
+					var potion = player.VisibleItems
+					                   .Where(item => Equals(item.Position, player.Position))
+					                   .Select(item => GetInfoFor(item.Id))
+					                   .FirstOrDefault(item => item.IsHealingPotion);
+					if (potion != null)
+					{
+						PickUpItem(playerId);
+						numberOfItems++;
+					}
+				}
+
+				var enemyPos = player.VisibleEntities
+				                     .Where(x => _currentParty.Keys.All(key => key != x.Id))
+				                     .Where(entity => player.Position.GetNeighbours().Any(n => n.Equals(entity.Position)))
+				                     .Select(x => x.Position)
+				                     .FirstOrDefault();
+
+				Position potionPos = null;
+				if (numberOfItems < 10)
+				{
+					potionPos = player.VisibleItems
+					                  .Where(item => GetInfoFor(item.Id).IsHealingPotion)
+					                  .OrderBy(item => item.Position.Distance(player.Position))
+					                  .Select(x => x.Position)
+					                  .FirstOrDefault();
+				}
+
+				var nextPos = potionPos ?? enemyPos;
+
+				if (nextPos != null)
+				{
+					SetGoalForPlayer(playerId, nextPos);
+				}
+				//------------------------------------------------
+
 			}
 
 			if (player.HitPoints <= 0)
