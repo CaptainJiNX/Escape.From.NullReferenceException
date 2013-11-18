@@ -5,23 +5,145 @@ namespace ApiClient.Tests
 	[TestFixture]
 	public class MapTests
 	{
-		[Test, Ignore("Just testing...")]
-		public void ClosestUnknown_Test()
+		[Test]
+		public void Should_find_closest_unknown_tile_in_corridors_heading_north_to_south()
 		{
-			var map = new Map("TestMap");
-
-			for (var y = 10; y <= 20; y++)
+			var mapArea = new[]
 			{
-				for (var x = 10; x <= 20; x++)
-				{
-					map.SetPositionValue(new Position(10, 10), (uint)TileFlags.ROOM);
-				}
-			}
+				"???",
+				"# #",
+				"# #",
+				"# #",
+				"# #",
+				"???"
+			};
 
-			var pos = map.GetClosestWalkablePositionWithUnknownNeighbour(new Position(14, 11), p => true);
+			var startPosition = new[]
+			{
+				"???",
+				"# #",
+				"#X#",
+				"# #",
+				"# #",
+				"???"
+			};
 
-			Assert.AreEqual(14, pos.X);
-			Assert.AreEqual(10, pos.Y);
+			var expectedPosition = new[]
+			{
+				"???",
+				"#X#",
+				"# #",
+				"# #",
+				"# #",
+				"???"
+			};
+
+			MapTestHelper.AssertClosestWalkablePosition(mapArea, startPosition, expectedPosition);
+		}
+
+		[Test]
+		public void Should_find_closest_unknown_tile_in_corridors_heading_east_to_west()
+		{
+			var mapArea = new[]
+			{
+				"?######?",
+				"?      ?",
+				"?######?"
+			};
+
+			var startPosition = new[]
+			{
+				"?######?",
+				"?   X  ?",
+				"?######?"
+			};
+
+			var expectedPosition = new[]
+			{
+				"?######?",
+				"?     X?",
+				"?######?"
+			};
+
+			MapTestHelper.AssertClosestWalkablePosition(mapArea, startPosition, expectedPosition);
+		}
+
+		[Test]
+		public void Should_find_closest_unknown_tile_in_rooms()
+		{
+			var mapArea = new[]
+			{
+				"#???#",
+				"** *****************#",
+				"*                  *#",
+				"*                  *?",
+				"*                   ?",
+				"*                  *?",
+				"********************#"
+			};
+
+			var startPosition = new[]
+			{
+				"#???#",
+				"** *****************#",
+				"*                  *#",
+				"*            X     *?",
+				"*                   ?",
+				"*                  *?",
+				"********************#"
+			};
+
+			var expectedPosition = new[]
+			{
+				"#???#",
+				"** *****************#",
+				"*                  *#",
+				"*                  *?",
+				"*                  X?",
+				"*                  *?",
+				"********************#"
+			};
+
+			MapTestHelper.AssertClosestWalkablePosition(mapArea, startPosition, expectedPosition);
+		}
+
+		[Test]
+		public void Should_find_closest_unknown_tile_far_away()
+		{
+			var mapArea = new[]
+			{
+				"#####################*******",
+				"*****################*     *",
+				"*   *######          +     *",
+				"*   *###### #########*     *?",
+				"*   +       #########*     +?",
+				"*   *################*******?",
+				"*****"
+			};
+
+			var startPosition = new[]
+			{
+				"#####################*******",
+				"*****################*     *",
+				"*X  *######          +     *",
+				"*   *###### #########*     *?",
+				"*   +       #########*     +?",
+				"*   *################*******?",
+				"*****"
+			};
+
+			var expectedPosition = new[]
+			{
+				"#####################*******",
+				"*****################*     *",
+				"*   *######          +     *",
+				"*   *###### #########*     *?",
+				"*   +       #########*     X?",
+				"*   *################*******?",
+				"*****"
+			};
+
+			MapTestHelper.AssertClosestWalkablePosition(mapArea, startPosition, expectedPosition);
 		}
 	}
 }

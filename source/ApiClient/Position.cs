@@ -29,6 +29,11 @@ namespace ApiClient
 			return unchecked((X*397) ^ Y);
 		}
 
+		public override string ToString()
+		{
+			return string.Format("{0},{1}", X, Y);
+		}
+
 		public int Distance(Position to)
 		{
 			return Math.Max(Math.Abs(X - to.X), Math.Abs(Y - to.Y));
