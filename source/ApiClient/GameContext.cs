@@ -279,9 +279,15 @@ namespace ApiClient
 		{
 			if (scanResult.Error != null)
 			{
-				if (scanResult.Error == "Unable to find character object")
+				if (scanResult.Error == "Unable to find character object" ||
+					scanResult.Error == "could not find a character by that id")
 				{
-					_currentParty.Remove(playerId);
+					if (_currentParty.ContainsKey(playerId))
+					{
+						_currentParty.Remove(playerId);
+					}
+
+					return;
 				}
 
 				AddMessage(scanResult.Error);
@@ -304,6 +310,14 @@ namespace ApiClient
 			if (player.Position.Equals(GetGoalForPlayer(playerId)))
 			{
 				RemoveGoalForPlayer(playerId);
+			}
+
+			if (PlayerHasAttackMode(playerId))
+			{
+				if (player.HitPoints < (player.MaxHitPoints/2))
+				{
+					QuickQuaff(playerId, x => x.IsHealingPotion);
+				}
 			}
 
 			if (player.HitPoints <= 0)
@@ -428,6 +442,21 @@ namespace ApiClient
 			}
 
 			AddResponseMessage(_client.Quaff(itemId, playerId));
+		}
+
+		public void QuickQuaff(string playerId, Func<ItemInfo, bool> predicate)
+		{
+			if (string.IsNullOrEmpty(playerId)) return;
+			var player = GetPlayer(playerId);
+
+			var potion = player.Inventory
+			                   .Select(GetInfoFor)
+			                   .FirstOrDefault(predicate);
+
+			if (potion != null)
+			{
+				QuaffPotion(player.Id, potion.Id);
+			}
 		}
 
 		public void PickUpItem(string playerId)

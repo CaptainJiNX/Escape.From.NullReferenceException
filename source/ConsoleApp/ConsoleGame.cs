@@ -250,10 +250,10 @@ namespace ConsoleApp
 					_context.QuaffPotion(player.Id, SelectFromInventory("Quaff", player));
 					break;
 				case ConsoleKey.G:
-					QuickQuaff(player, x => x.IsGaseousPotion);
+					_context.QuickQuaff(player.Id, x => x.IsGaseousPotion);
 					break;
 				case ConsoleKey.H:
-					QuickQuaff(player, x => x.IsHealingPotion);
+					_context.QuickQuaff(player.Id, x => x.IsHealingPotion);
 					break;
 				case ConsoleKey.OemPlus:
 					IncreaseAttribute(player);
@@ -316,18 +316,6 @@ namespace ConsoleApp
 						}
 					}
 					break;
-			}
-		}
-
-		private void QuickQuaff(Character player, Func<ItemInfo, bool> predicate)
-		{
-			var potion = player.Inventory
-			                   .Select(x => _context.GetInfoFor(x))
-			                   .FirstOrDefault(predicate);
-
-			if (potion != null)
-			{
-				_context.QuaffPotion(player.Id, potion.Id);
 			}
 		}
 
