@@ -212,8 +212,9 @@ namespace ConsoleApp
 		{
 			switch (key.Key)
 			{
-				case ConsoleKey.X:
 				case ConsoleKey.Spacebar:
+					break;
+				case ConsoleKey.X:
 					_context.Move(player.Id, _context.GetNextDirectionForPlayer(player.Id));
 					break;
 				case ConsoleKey.Y:
@@ -378,11 +379,14 @@ namespace ConsoleApp
 
 		private void HandleCommand(string command)
 		{
-			switch ((command ?? "").ToLowerInvariant())
+			var args = command.Split(' ').Skip(1);
+			var cmd = command.Split(' ').FirstOrDefault();
+
+			switch ((cmd ?? "").ToLowerInvariant())
 			{
 				case "fp":
 				case "findpath":
-					FindPath();
+					FindPath(args);
 					break;
 
 				case "fu":
@@ -397,7 +401,7 @@ namespace ConsoleApp
 
 				case "sg":
 				case "setgoal":
-					SetGoal();
+					SetGoal(args);
 					break;
 
 				case "hs":
@@ -410,10 +414,10 @@ namespace ConsoleApp
 					{
 						"Select one of the following",
 						"---------------------------",
-						"findpath (fp)",
+						"findpath (fp) {x1,y1 {x2,y2}}",
 						"findup (fu)",
 						"finddown (fd)",
-						"setgoal (sg)",
+						"setgoal (sg) {x,y}",
 						"highscores (hs)"
 					});
 					break;
@@ -460,8 +464,14 @@ namespace ConsoleApp
 			Console.ReadKey(true);
 		}
 
-		private void SetGoal()
+		private void SetGoal(IEnumerable<string> args)
 		{
+			Position posArg1 = null;
+			if (args != null && args.Any())
+			{
+				posArg1 = TryParsePosition(args.FirstOrDefault());
+			}
+
 			var player = _context.GetPlayer(_currentPlayerId);
 			var map = _context.GetMap(player.CurrentMap);
 			var mapArea = CreateMapArea(map);
@@ -470,28 +480,51 @@ namespace ConsoleApp
 
 			var startPos = new Position(player.XPos, player.YPos);
 
-			var endPos = SelectPosition(map, startPos, "Select goal for player");
+			var endPos = posArg1 ?? SelectPosition(map, startPos, "Select goal for player");
 			if (endPos == null) return;
 
 			_context.SetGoalForPlayer(player.Id, endPos);
 		}
 
-		private void FindPath()
+		private Position TryParsePosition(string val)
 		{
+			if (string.IsNullOrEmpty(val)) return null;
+			var split = val.Split(',');
+			if (split.Length != 2) return null;
+
+			int x;
+			if (!int.TryParse(split[0], out x)) return null;
+	
+			int y;
+			if (!int.TryParse(split[1], out y)) return null;
+
+			return new Position(x, y);
+		}
+
+		private void FindPath(IEnumerable<string> args)
+		{
+			Position posArg1 = null;
+			Position posArg2 = null;
+			if (args != null && args.Any())
+			{
+				posArg1 = TryParsePosition(args.FirstOrDefault());
+				posArg2 = TryParsePosition(args.Skip(1).FirstOrDefault());
+			}
+
 			var player = _context.GetPlayer(_currentPlayerId);
 			var map = _context.GetMap(player.CurrentMap);
 			var mapArea = CreateMapArea(map);
 
 			_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
 
-			var startPos = SelectPosition(map, player.Position, "Select start position");
+			var startPos = posArg1 ?? SelectPosition(map, player.Position, "Select start position");
 			if (startPos == null) return;
 
 			mapArea.Write("1", startPos.X, startPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
 			mapArea.CenterOffset(startPos.X, startPos.Y);
 			_console2.DrawArea(mapArea, 0, 0);
 
-			var endPos = SelectPosition(map, startPos, "Select end position");
+			var endPos = posArg2 ?? SelectPosition(map, startPos, "Select end position");
 			if (endPos == null) return;
 
 			mapArea.Write("2", endPos.X, endPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
