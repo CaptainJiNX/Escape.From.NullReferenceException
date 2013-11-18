@@ -58,13 +58,17 @@ namespace ConsoleApp
 			area.SetDefaultForeground(ConsoleColor.Green);
 			area.SetTitle(player.Name);
 
-			area.Write(string.Format("STR: {0}", player.Strength), 1, 1);
-			area.Write(string.Format("DEX: {0}", player.Dexterity), 1, 2);
-			area.Write(string.Format("CON: {0}", player.Constitution), 1, 3);
-			area.Write(string.Format("INT: {0}", player.Intelligence), 1, 4);
-			area.Write(string.Format("WIS: {0}", player.Wisdom), 1, 5);
-			area.Write(string.Format("XP: {0}", player.Experience), 1, 7);
-			area.Write(string.Format("Lvl: {0}", player.Level), 1, 8);
+			var row = 0;
+
+			area.Write(string.Format("STR: {0}", player.Strength), 1, ++row);
+			area.Write(string.Format("DEX: {0}", player.Dexterity), 1, ++row);
+			area.Write(string.Format("CON: {0}", player.Constitution), 1, ++row);
+			area.Write(string.Format("INT: {0}", player.Intelligence), 1, ++row);
+			area.Write(string.Format("WIS: {0}", player.Wisdom), 1, ++row);
+
+			row++;
+			area.Write(string.Format("XP: {0}", player.Experience), 1, ++row);
+			area.Write(string.Format("Lvl: {0}", player.Level), 1, ++row);
 
 
 			var hpCol = ConsoleColor.Green;
@@ -73,18 +77,22 @@ namespace ConsoleApp
 				hpCol = player.HitPoints < player.MaxHitPoints / 2 ? ConsoleColor.Red : ConsoleColor.Yellow;
 			}
 
-			area.Write(string.Format("HP: {0}/{1}", player.HitPoints, player.MaxHitPoints), 1, 10, hpCol);
-			area.Write(string.Format("AC: {0}", player.ArmorClass), 1, 11);
+			row++;
+			area.Write(string.Format("HP: {0}/{1}", player.HitPoints, player.MaxHitPoints), 1, ++row, hpCol);
+			area.Write(string.Format("AC: {0}", player.ArmorClass), 1, ++row);
+			area.Write("Weapon: " + player.WieldedWeaponName, 1, ++row);
+			area.Write("Armor: " + player.EquippedArmorName, 1, ++row);
+			area.Write("Light: " + player.Light, 1, ++row);
+			area.Write("Speed: " + player.Speed, 1, ++row);
+			area.Write("Avail. pts: " + player.PointsToAllocate, 1, ++row);
 
-			area.Write("Weapon: " + player.WieldedWeaponName, 1, 12);
-			area.Write("Armor: " + player.EquippedArmorName, 1, 13);
-
-			area.Write("Inventory", 1, 15);
-			area.Write("=========", 1, 16);
+			row++;
+			area.Write("Inventory", 1, ++row);
+			area.Write("=========", 1, ++row);
 
 			for (int i = 0; i < player.Inventory.Length; i++)
 			{
-				area.Write(string.Format("{0}: {1}", i, _context.GetInfoFor(player.Inventory[i]).Name), 1, 17 + i);
+				area.Write(string.Format("{0}: {1}", i, _context.GetInfoFor(player.Inventory[i]).Name), 1, ++row);
 			}
 
 			area.SetOffset(0, 0);
