@@ -101,7 +101,7 @@ namespace ApiClient
 			var player = GetPlayer(playerId);
 			var map = GetOrAddMap(player.CurrentMap);
 
-			var nextPos = map.GetClosestUnknownPosition(
+			var nextPos = map.GetClosestWalkablePositionWithUnknownNeighbour(
 				player.Position,
 				pos => PathFinder.CalculatePath(player.Position, pos, p => PlayerCanWalkHere(player, map, p)).Any());
 
