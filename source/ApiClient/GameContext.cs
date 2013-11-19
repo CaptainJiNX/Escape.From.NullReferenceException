@@ -624,11 +624,15 @@ namespace ApiClient
 
 		public void MoveUp(string playerId)
 		{
+			RemoveGoalForPlayer(playerId);
+			RemoveTempGoalForPlayer(playerId);
 			AddResponseMessage(_client.LevelUp(playerId));
 		}
 
 		public void MoveDown(string playerId)
 		{
+			RemoveGoalForPlayer(playerId);
+			RemoveTempGoalForPlayer(playerId);
 			AddResponseMessage(_client.LevelDown(playerId));
 		}
 
