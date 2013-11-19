@@ -308,10 +308,10 @@ namespace ConsoleApp
 								_currentPlayerId = _player3Id;
 								break;
 							case '0':
-								_context.RemoveAttackMode(_currentPlayerId);
+								_context.ToggleAttackMode(_currentPlayerId);
 								break;
 							case '9':
-								_context.SetAttackMode(_currentPlayerId);
+								_context.TogglePvPMode(_currentPlayerId);
 								break;
 						}
 					}

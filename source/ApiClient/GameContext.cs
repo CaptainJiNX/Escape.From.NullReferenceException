@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
@@ -16,9 +17,14 @@ namespace ApiClient
 		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
 		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
+
+		// Move this crap in to character instead...
 		private readonly Dictionary<string, Position> _goals = new Dictionary<string, Position>();
+		private readonly Dictionary<string, Position> _tmpGoals = new Dictionary<string, Position>();
 		private readonly HashSet<string> _attackingPlayers = new HashSet<string>(); 
+		private readonly HashSet<string> _pvpPlayers = new HashSet<string>(); 
 		private readonly HashSet<string> _gaseousPlayers = new HashSet<string>(); 
+		//.....
 
 		private static readonly Character NullCharacter = new Character
 		{
@@ -98,14 +104,20 @@ namespace ApiClient
 		public void Scout(string playerId)
 		{
 			if (string.IsNullOrEmpty(playerId)) return;
-			var player = GetPlayer(playerId);
-			var map = GetOrAddMap(player.CurrentMap);
 
-			var nextPos = map.GetClosestWalkablePositionWithUnknownNeighbour(
-				player.Position,
-				pos => PathFinder.CalculatePath(player.Position, pos, p => PlayerCanWalkHere(player, map, p)).Any());
+			if ((GetTempGoalForPlayer(playerId) ?? GetGoalForPlayer(playerId)) == null)
+			{
+				var player = GetPlayer(playerId);
+				var map = GetOrAddMap(player.CurrentMap);
 
-			_goals[player.Id] = nextPos;
+				Func<Position, bool> hasWalkablePath =
+					pos => PathFinder.CalculatePath(player.Position, pos, p => PlayerCanWalkHere(player, map, p)).Any();
+				var nextPos = map.GetClosestWalkablePositionWithUnknownNeighbour(player.Position, hasWalkablePath);
+				nextPos = nextPos ?? map.GetRandomWalkablePosition(hasWalkablePath);
+
+				SetGoalForPlayer(playerId, nextPos);
+			}
+
 			Move(playerId, GetNextDirectionForPlayer(playerId));
 		}
 
@@ -139,13 +151,44 @@ namespace ApiClient
 			return pos.GetNeighbours().FirstOrDefault(next => GetDirection(pos, next) == dir);
 		}
 
-		public void SetAttackMode(string playerId)
+		public void ToggleAttackMode(string playerId)
 		{
 			if(String.IsNullOrEmpty(playerId)) return;
-			if (PlayerHasAttackMode(playerId)) return;
-			_attackingPlayers.Add(playerId);
 			var player = GetPlayer(playerId);
-			AddMessage(String.Format("{0} [{1}] is now attacking.", player.Name, player.Id));
+
+			if (PlayerHasAttackMode(playerId))
+			{
+				_attackingPlayers.Remove(playerId);
+				AddMessage(String.Format("{0} [{1}] is now avoiding monsters...", player.Name, player.Id));
+			}
+			else
+			{
+				_attackingPlayers.Add(playerId);
+				AddMessage(String.Format("{0} [{1}] is now attacking monsters!", player.Name, player.Id));
+			}
+		}
+
+		public void TogglePvPMode(string playerId)
+		{
+			if (String.IsNullOrEmpty(playerId)) return;
+			var player = GetPlayer(playerId);
+
+			if (PlayerHasPvPMode(playerId))
+			{
+				_pvpPlayers.Remove(playerId);
+				AddMessage(String.Format("{0} [{1}] is now avoiding other players...", player.Name, player.Id));
+			}
+			else
+			{
+				_pvpPlayers.Add(playerId);
+				AddMessage(String.Format("{0} [{1}] is now attacking other players!!!", player.Name, player.Id));
+			}
+
+		}
+
+		private bool PlayerHasPvPMode(string playerId)
+		{
+			return _pvpPlayers.Contains(playerId);
 		}
 
 		private bool PlayerHasAttackMode(string playerId)
@@ -158,16 +201,7 @@ namespace ApiClient
 			return _gaseousPlayers.Contains(playerId);
 		}
 
-		public void RemoveAttackMode(string playerId)
-		{
-			if (String.IsNullOrEmpty(playerId)) return;
-			if (!PlayerHasAttackMode(playerId)) return;
-			_attackingPlayers.Remove(playerId);
-			var player = GetPlayer(playerId);
-			AddMessage(String.Format("{0} [{1}] is now avoiding monsters.", player.Name, player.Id));
-		}
-
-		public void SetGaseousMode(string playerId)
+		private void SetGaseousMode(string playerId)
 		{
 			if(String.IsNullOrEmpty(playerId)) return;
 			if (PlayerIsGaseous(playerId)) return;
@@ -176,7 +210,7 @@ namespace ApiClient
 			AddMessage(String.Format("{0} [{1}] can now walk through walls.", player.Name, player.Id));
 		}
 
-		public void RemoveGaseousMode(string playerId)
+		private void RemoveGaseousMode(string playerId)
 		{
 			if (String.IsNullOrEmpty(playerId)) return;
 			if (!PlayerIsGaseous(playerId)) return;
@@ -194,6 +228,11 @@ namespace ApiClient
 			AddMessage(String.Format("New goal for player {0} [{1}] set to ({2},{3})", player.Name, player.Id, goal.X, goal.Y));
 		}
 
+		private void SetTempGoalForPlayer(string playerId, Position goal)
+		{
+			_tmpGoals[playerId] = goal;
+		}
+
 		private void RemoveGoalForPlayer(string playerId)
 		{
 			if (playerId == null) return;
@@ -203,10 +242,21 @@ namespace ApiClient
 			AddMessage(String.Format("Removed goal for player {0} [{1}]", player.Name, player.Id));
 		}
 
+		private void RemoveTempGoalForPlayer(string playerId)
+		{
+			_tmpGoals.Remove(playerId);
+		}
+
 		public Position GetGoalForPlayer(string playerId)
 		{
 			Position goal;
 			return _goals.TryGetValue(playerId ?? string.Empty, out goal) ? goal : null;
+		}
+
+		private Position GetTempGoalForPlayer(string playerId)
+		{
+			Position goal;
+			return _tmpGoals.TryGetValue(playerId ?? string.Empty, out goal) ? goal : null;
 		}
 
 		private bool GaseousPlayerCanWalkHere(Character player, Position pos)
@@ -217,24 +267,54 @@ namespace ApiClient
 			return !blocked.Any(x => x.Equals(pos));
 		}
 
+		private bool IsFriendly(string playerId)
+		{
+			return _currentParty.ContainsKey(playerId);
+		}
+
+
+		private IEnumerable<Item> GetEnemyCharacters(Character player)
+		{
+			return player.VisibleEntities.Where(x => x.Type == "character" && !IsFriendly(x.Id));
+		}
+
+		private IEnumerable<Item> GetFriends(Character player)
+		{
+			return player.VisibleEntities.Where(x => x.Type == "character" && IsFriendly(x.Id) && x.Id != player.Id);
+		} 
+
+		private IEnumerable<Item> GetMonsters(Character player)
+		{
+			return player.VisibleEntities.Where(x => x.Type == "monster");
+		} 
+
 		private bool PlayerCanWalkHere(Character player, Map map, Position pos)
 		{
-			var entities = player.VisibleEntities.Where(item => item.Id != player.Id);
+			var friends = GetFriends(player);
+			var enemyCharacters = GetEnemyCharacters(player);
+			var monsters = GetMonsters(player);
+			var boulders = player.VisibleItems.Where(item => GetInfoFor(item.Id).SubType == "boulder");
 
-			if (PlayerHasAttackMode(player.Id))
+			var blockingItems = friends.Concat(boulders);
+
+			if (!PlayerHasPvPMode(player.Id))
 			{
-				entities = entities.Where(x => x.Type != "monster");
+				blockingItems = blockingItems.Concat(enemyCharacters);
 			}
 
-			var boulders = player.VisibleItems.Where(item => GetInfoFor(item.Id).SubType == "boulder");
-			var blocked = entities.Concat(boulders).Select(item => new Position(item.XPos, item.YPos));
+			if (!PlayerHasAttackMode(player.Id))
+			{
+				blockingItems = blockingItems.Concat(monsters);
+			}
 
-			return !blocked.Any(x => x.Equals(pos)) && (PlayerIsGaseous(player.Id) || map.IsWalkable(pos));
+			var blockedPositions = blockingItems.Select(item => item.Position);
+
+			return !blockedPositions.Any(x => x.Equals(pos)) && (PlayerIsGaseous(player.Id) || map.IsWalkable(pos));
 		}
 
 		public Direction GetNextDirectionForPlayer(string playerId)
 		{
-			var goalForPlayer = GetGoalForPlayer(playerId);
+			var goalForPlayer = GetTempGoalForPlayer(playerId) ?? GetGoalForPlayer(playerId);
 
 			if(goalForPlayer == null)
 				return Direction.None;
@@ -303,8 +383,7 @@ namespace ApiClient
 				_mapStorage.Store(map);
 			}
 
-			// Disabled damage stats for now...
-			//StoreDamageStatistics(scanResult, playerId);
+			StoreDamageStatistics(scanResult, playerId);
 			AddUpdateMessages(scanResult);
 
 			if (player.Position.Equals(GetGoalForPlayer(playerId)))
@@ -312,15 +391,19 @@ namespace ApiClient
 				RemoveGoalForPlayer(playerId);
 			}
 
-			if (PlayerHasAttackMode(playerId))
+			if (player.Position.Equals(GetTempGoalForPlayer(playerId)))
+			{
+				RemoveTempGoalForPlayer(playerId);
+			}
+
+			if (PlayerHasAttackMode(playerId) || PlayerHasPvPMode(playerId))
 			{
 				if (player.HitPoints < (player.MaxHitPoints/2))
 				{
 					QuickQuaff(playerId, x => x.IsHealingPotion);
 				}
 
-
-				// Just some temporary stuff...
+				// Just some temporary ai stuff for the player...
 				//------------------------------------------------
 				var numberOfItems = player.Inventory.Length;
 				if (numberOfItems < 10)
@@ -336,28 +419,52 @@ namespace ApiClient
 					}
 				}
 
-				var enemyPos = player.VisibleEntities
-				                     .Where(x => _currentParty.Keys.All(key => key != x.Id))
-				                     .Where(entity => player.Position.GetNeighbours().Any(n => n.Equals(entity.Position)))
-				                     .Select(x => x.Position)
-				                     .FirstOrDefault();
+				var monsterPositions = GetMonsters(player)
+					.OrderBy(x => x.Position.Distance(player.Position))
+					.Select(x => x.Position);
+
+				var enemyPositions = GetEnemyCharacters(player)
+					.OrderBy(x => x.Position.Distance(player.Position))
+					.Select(x => x.Position);
+
+				var potionPositions = player.VisibleItems
+				                      .Where(item => GetInfoFor(item.Id).IsHealingPotion)
+				                      .OrderBy(item => item.Position.Distance(player.Position))
+				                      .Select(x => x.Position);
 
 				Position potionPos = null;
+				Position enemyPos = null;
+				Position monsterPos = null;
+
 				if (numberOfItems < 10)
 				{
-					potionPos = player.VisibleItems
-					                  .Where(item => GetInfoFor(item.Id).IsHealingPotion)
-					                  .OrderBy(item => item.Position.Distance(player.Position))
-					                  .Select(x => x.Position)
-					                  .FirstOrDefault();
+					potionPos = potionPositions.FirstOrDefault();
 				}
 
-				var nextPos = potionPos ?? enemyPos;
+				if (PlayerHasAttackMode(playerId))
+				{
+					monsterPos = monsterPositions.FirstOrDefault();
+				}
+
+				if (PlayerHasPvPMode(playerId))
+				{
+					enemyPos = enemyPositions.FirstOrDefault();
+				}
+
+				var nextPos = new[]{potionPos,monsterPos,enemyPos}
+					.Where(pos => pos != null)
+					.OrderBy(pos => pos.Distance(player.Position))
+					.FirstOrDefault();
 
 				if (nextPos != null)
 				{
-					SetGoalForPlayer(playerId, nextPos);
+					SetTempGoalForPlayer(playerId, nextPos);
 				}
+				else
+				{
+					RemoveTempGoalForPlayer(playerId);
+				}
+
 				//------------------------------------------------
 
 			}

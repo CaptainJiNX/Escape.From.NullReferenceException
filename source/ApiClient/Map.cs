@@ -76,5 +76,12 @@ namespace ApiClient
 			                   .OrderBy(fromPos.Distance)
 			                   .FirstOrDefault(predicate);
 		}
+
+		public Position GetRandomWalkablePosition(Func<Position, bool> predicate)
+		{
+			return AllPositions.Where(IsWalkable)
+			                   .OrderBy(x => Guid.NewGuid())
+			                   .FirstOrDefault(predicate);
+		}
 	}
 }
