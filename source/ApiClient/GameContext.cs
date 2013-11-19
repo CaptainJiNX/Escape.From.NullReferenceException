@@ -15,6 +15,7 @@ namespace ApiClient
 
 		private readonly Dictionary<string, Character> _currentParty = new Dictionary<string, Character>();
 		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
+		private readonly HashSet<string> _exploredMaps = new HashSet<string>(); 
 		private readonly LinkedList<string> _messageLog = new LinkedList<string>();
 		private readonly Dictionary<string, ItemInfo> _currentItems = new Dictionary<string, ItemInfo>();
 
@@ -110,10 +111,18 @@ namespace ApiClient
 				var player = GetPlayer(playerId);
 				var map = GetOrAddMap(player.CurrentMap);
 
-				Func<Position, bool> hasWalkablePath =
-					pos => PathFinder.CalculatePath(player.Position, pos, p => PlayerCanWalkHere(player, map, p)).Any();
+				Func<Position, bool> hasWalkablePath = pos => PathFinder.CalculatePath(player.Position, pos, p => PlayerCanWalkHere(player, map, p)).Any();
 				var nextPos = map.GetClosestWalkablePositionWithUnknownNeighbour(player.Position, hasWalkablePath);
-				nextPos = nextPos ?? map.GetRandomWalkablePosition(hasWalkablePath);
+
+				if (nextPos == null)
+				{
+					if (!_exploredMaps.Contains(map.Name))
+					{
+						_exploredMaps.Add(map.Name);
+						AddMessage(string.Format("Map [{0}] is now fully explored! Yay!", map.Name));
+					}
+					nextPos = map.GetRandomWalkablePosition(hasWalkablePath);
+				}
 
 				SetGoalForPlayer(playerId, nextPos);
 			}
