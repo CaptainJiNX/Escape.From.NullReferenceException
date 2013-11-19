@@ -23,7 +23,7 @@ Any time you get a popup window with digits (like when wielding or equipping), j
 - **findpath** (short **fp**) *{x1,y1 {x2,y2}}*<br>Display a path between two positions. Specify arguments or select from map with arrow keys and enter.
 - **highscores** (short **hs**)<br>Displays the wall of fame! Get up there!
 
-When the player has a goal set, you can press the **X** key to automatically move towards the goal. If you drink a *Gaseous Potion* you may move through walls, and reach your goal quicker. When moving this way you can set two different modes. Press **9** for **attack mode** and **0** for **avoid mode**. When in attack mode, player will walk straight into monsters. In avoid mode, the player will try to walk around monsters.
+When the player has a goal set, you can press the **X** key to automatically move towards the goal. If you drink a *Gaseous Potion* you may move through walls, and reach your goal quicker. When moving this way you can set a couple of different modes. Press **0** to toggle **attack mode** and **9** to toggle **pvp mode**. These modes are only useful in combination with moving towards a goal, or scouting (**Y**). When in attack mode, player will attack any visible monsters. In pvp mode, the player will attack any visible enemy. In both attack and pvp mode, the player will also move to pick up healing potions if visible (and enough space in inventory). This is because in any of these modes, the player will automatically heal when HP is dropping below 50%. :)
 
 Available keys
 --------------
@@ -33,7 +33,7 @@ Key|Action
 **A,S,D,W (or arrow keys)** | Move around
 **Q,E,Z,C** | Move diagonally
 **X** | Move towards goal (if any)
-**Y** | Scout (untested...)
+**Y** | Scout (or moves to random position)
 **U** | Move up stairs
 **N** | Move down stairs
 **P** | Pick up item
@@ -44,10 +44,15 @@ Key|Action
 **F** | Quaff potion
 **G** | Quick gaseous potion
 **H** | Quick heal
+**0** | Toggle "attack monsters" on/off
+**9** | Toggle "attack players" on/off
 **+ (plus)** | Increase attribute after a level up
 **J** | Planeshift (untested)
 **I** | List visible items
 **K** | List visible entities (monsters and players)
+**1** | Switch to player 1
+**2** | Switch to player 2
+**3** | Switch to player 3
 **M** | Re-initialize party
 **- (minus)** | Enter a command (see above)
 **Space** | Do nothing (just scan)
