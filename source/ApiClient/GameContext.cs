@@ -420,7 +420,8 @@ namespace ApiClient
 					var potion = player.VisibleItems
 					                   .Where(item => Equals(item.Position, player.Position))
 					                   .Select(item => GetInfoFor(item.Id))
-					                   .FirstOrDefault(item => item.IsHealingPotion);
+					                   .Where(item => item.IsPotion)
+					                   .FirstOrDefault(item => !item.IsGaseousPotion);
 					if (potion != null)
 					{
 						PickUpItem(playerId);
@@ -437,7 +438,8 @@ namespace ApiClient
 					.Select(x => x.Position);
 
 				var potionPositions = player.VisibleItems
-				                      .Where(item => GetInfoFor(item.Id).IsHealingPotion)
+				                      .Where(item => GetInfoFor(item.Id).IsPotion)
+				                      .Where(item => !GetInfoFor(item.Id).IsGaseousPotion)
 				                      .OrderBy(item => item.Position.Distance(player.Position))
 				                      .Select(x => x.Position);
 
