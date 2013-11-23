@@ -165,6 +165,8 @@ namespace ApiClient
 			if(String.IsNullOrEmpty(playerId)) return;
 			var player = GetPlayer(playerId);
 
+			RemoveTempGoalForPlayer(playerId);
+
 			if (PlayerHasAttackMode(playerId))
 			{
 				_attackingPlayers.Remove(playerId);
@@ -181,6 +183,8 @@ namespace ApiClient
 		{
 			if (String.IsNullOrEmpty(playerId)) return;
 			var player = GetPlayer(playerId);
+
+			RemoveTempGoalForPlayer(playerId);
 
 			if (PlayerHasPvPMode(playerId))
 			{
@@ -253,6 +257,7 @@ namespace ApiClient
 
 		private void RemoveTempGoalForPlayer(string playerId)
 		{
+			if (playerId == null) return;
 			_tmpGoals.Remove(playerId);
 		}
 
