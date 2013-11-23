@@ -46,6 +46,8 @@ namespace ApiClient
 
 		private void Initialize()
 		{
+			ClearEeeeverything();
+
 			var party = _client.GetParty();
 
 			if (party.Characters != null)
@@ -60,6 +62,18 @@ namespace ApiClient
 			{
 				_currentMaps.Add(map.Name, map);
 			}
+		}
+
+		private void ClearEeeeverything()
+		{
+			_currentParty.Clear();
+			_currentMaps.Clear();
+			_goals.Clear();
+			_tmpGoals.Clear();
+			_attackingPlayers.Clear();
+			_pvpPlayers.Clear();
+			_gaseousPlayers.Clear();
+			_exploredMaps.Clear();
 		}
 
 		public IEnumerable<Character> Party
@@ -682,6 +696,11 @@ namespace ApiClient
 		{
 			if (String.IsNullOrEmpty(itemId)) return;
 			AddResponseMessage(_client.Unequip(itemId, playerId));
+		}
+
+		public void RefreshParty()
+		{
+			Initialize();
 		}
 	}
 }

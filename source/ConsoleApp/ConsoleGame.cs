@@ -733,6 +733,7 @@ namespace ConsoleApp
 
 		private void InitPlayers()
 		{
+			_context.RefreshParty();
 			var invalidPlayers = _context.Party.Where(x => !PlayerNames.Any(p => x.Name.StartsWith(p))).ToList();
 
 			foreach (var player in invalidPlayers)
