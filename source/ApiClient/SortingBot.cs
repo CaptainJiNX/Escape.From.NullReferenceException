@@ -137,13 +137,13 @@ namespace ApiClient
 			if (!moreToExplore)
 			{
 
-				var position
+				//var position
 				var itemToSort = _itemsToSort.OrderBy(x => x.Name).FirstOrDefault();
 				
 				if (itemToSort == null)
 					return;
 
-				 itemToSort.Position
+				 //itemToSort.Position
 			}
 		}
 
