@@ -108,20 +108,22 @@ namespace ApiClient
 			get { return _visibleArea ?? new Position[0]; }
 		}
 
+		[JsonIgnore]
+		public Position AttackingPosition { get; set; }
+
 		public void Update(ScanResult result)
 		{
 			if (result.Updates != null)
 			{
-				var charUpdate = result.Updates
-									   .Where(x => x.Character != null)
-									   .LastOrDefault(x => x.Character.Id == Id);
-				if (charUpdate != null)
-				{
-					Update(charUpdate.Character);
-				}
+				var charUpdates = result.Updates.Where(x => x.Character != null && x.Character.Id == this.Id);
 
-				var inventoryUpdate = result.Updates.LastOrDefault(x => x.Inventory != null);
-				if (inventoryUpdate != null) Inventory = inventoryUpdate.Inventory;
+				foreach(var charUpdate in charUpdates)
+					Update(charUpdate.Character);
+
+				foreach (var inventoryUpdate in result.Updates.Where(x => x.Inventory != null))
+				{
+					Inventory = inventoryUpdate.Inventory;
+				}
 			}
 
 
@@ -134,7 +136,7 @@ namespace ApiClient
 			_visibleArea = result.ConvertAreaToPositions().Select(x => x.Item1);
 		}
 
-		private void Update(Character uc)
+		public void Update(Character uc)
 		{
 			ArmorClass = uc.ArmorClass;
 			_hitPoints = uc._hitPoints;
@@ -157,6 +159,11 @@ namespace ApiClient
 			WieldedWeaponName = uc.WieldedWeaponName;
 
 			PointsToAllocate = uc.PointsToAllocate;
+
+			if (uc.Inventory != null)
+			{
+				Inventory = uc.Inventory;
+			}
 		}
 	}
 }

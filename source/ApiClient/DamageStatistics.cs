@@ -1,4 +1,6 @@
-﻿namespace ApiClient
+﻿using System;
+
+namespace ApiClient
 {
 	public class DamageStatistics
 	{
@@ -17,6 +19,11 @@
 			Damage = damage;
 			Strength = strength;
 			Level = level;
+		}
+
+		public int GetBaseDamage()
+		{
+			return Damage - (Math.Max(15, Strength) - 15);
 		}
 
 		public string WeaponName { get; private set; }

@@ -47,7 +47,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArmorStatistics.cs" />
     <Compile Include="Attribute.cs" />
+    <Compile Include="AutoNinjaBot.cs" />
+    <Compile Include="SortingBot.cs" />
+    <Compile Include="HenchMan.cs" />
     <Compile Include="BinaryMapStorage.cs" />
     <Compile Include="Character.cs" />
     <Compile Include="ClientWrapper.cs" />
@@ -64,6 +68,7 @@
     <Compile Include="PathFinder.cs" />
     <Compile Include="Position.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RoomWalker.cs" />
     <Compile Include="ScanResult.cs" />
     <Compile Include="ScanUpdate.cs" />
     <Compile Include="TileFlags.cs" />

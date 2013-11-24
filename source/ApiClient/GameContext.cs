@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
@@ -12,6 +13,7 @@ namespace ApiClient
 		private readonly IClientWrapper _client;
 		private readonly ISimpleStorage<Map> _mapStorage;
 		private readonly ISimpleStorage<DamageStatistics> _damageStorage;
+		private readonly ISimpleStorage<ArmorStatistics> _armorStorage;
 
 		private readonly Dictionary<string, Character> _currentParty = new Dictionary<string, Character>();
 		private readonly Dictionary<string, Map> _currentMaps = new Dictionary<string, Map>();
@@ -22,9 +24,10 @@ namespace ApiClient
 		// Move this crap in to character instead...
 		private readonly Dictionary<string, Position> _goals = new Dictionary<string, Position>();
 		private readonly Dictionary<string, Position> _tmpGoals = new Dictionary<string, Position>();
+		private readonly Dictionary<string, IEnumerable<Position>> _roomGoals = new Dictionary<string, IEnumerable<Position>>();
 		private readonly HashSet<string> _attackingPlayers = new HashSet<string>(); 
 		private readonly HashSet<string> _pvpPlayers = new HashSet<string>(); 
-		private readonly HashSet<string> _gaseousPlayers = new HashSet<string>(); 
+		private readonly HashSet<string> _gaseousPlayers = new HashSet<string>();
 		//.....
 
 		private static readonly Character NullCharacter = new Character
@@ -33,13 +36,18 @@ namespace ApiClient
 			Inventory = new string[0]
 		};
 
+		private string _currentPlayerId;
+		public readonly List<Item> AvailableItemsForPickup = new List<Item>();
+
 		public GameContext(IClientWrapper client, 
 			ISimpleStorage<Map> mapStorage, 
-			ISimpleStorage<DamageStatistics> damageStorage)
+			ISimpleStorage<DamageStatistics> damageStorage,
+			ISimpleStorage<ArmorStatistics> armorStorage)
 		{
 			_client = client;
 			_mapStorage = mapStorage;
 			_damageStorage = damageStorage;
+			_armorStorage = armorStorage;
 
 			Initialize();
 		}
@@ -111,15 +119,22 @@ namespace ApiClient
 			return character;
 		}
 
-		public void Scan(string playerId)
+		public ScanResult ScanAndUpdate(string playerId)
 		{
-			Update(playerId, _client.Scan(playerId));
+			var scanResult = Scan(playerId);
+			Update(playerId, scanResult);
+			return scanResult;
 		}
 
-		public void Scout(string playerId)
+		public ScanResult Scan(string playerId)
 		{
-			if (string.IsNullOrEmpty(playerId)) return;
+			return _client.Scan(playerId);
+		}
 
+		public bool Scout(string playerId)
+		{
+			if (string.IsNullOrEmpty(playerId)) return false;
+			var moreToExplore = true; 
 			if ((GetTempGoalForPlayer(playerId) ?? GetGoalForPlayer(playerId)) == null)
 			{
 				var player = GetPlayer(playerId);
@@ -130,6 +145,7 @@ namespace ApiClient
 
 				if (nextPos == null)
 				{
+					moreToExplore = false;
 					if (!_exploredMaps.Contains(map.Name))
 					{
 						_exploredMaps.Add(map.Name);
@@ -142,11 +158,25 @@ namespace ApiClient
 			}
 
 			Move(playerId, GetNextDirectionForPlayer(playerId));
+			return moreToExplore;
 		}
 
 		public void Move(string playerId, Direction dir)
 		{
 			if (string.IsNullOrEmpty(playerId) || dir == Direction.None) return;
+
+			var player = GetPlayer(playerId);
+			var expectedPosition = GetNextPosition(player.Position, dir);
+
+			if (GetMonsters(player).Concat(GetEnemyCharacters(player)).Any(monster => monster.Position.Equals(expectedPosition)))
+			{
+				player.AttackingPosition = expectedPosition;
+			}
+			else
+			{
+				player.AttackingPosition = null;
+			}
+
 			var moveResult = _client.Move(playerId, dir);
 
 			if (moveResult.Error != null)
@@ -157,9 +187,6 @@ namespace ApiClient
 
 			if (PlayerIsGaseous(playerId))
 			{
-				var player = GetPlayer(playerId);
-				var expectedPosition = GetNextPosition(player.Position, dir);
-
 				if (GaseousPlayerCanWalkHere(player, expectedPosition) && !moveResult.MoveSucceeded)
 				{
 					RemoveGaseousMode(playerId);
@@ -171,7 +198,7 @@ namespace ApiClient
 
 		private Position GetNextPosition(Position pos, Direction dir)
 		{
-			return pos.GetNeighbours().FirstOrDefault(next => GetDirection(pos, next) == dir);
+			return pos.GetNeighbours().FirstOrDefault(next => pos.Direction(next) == dir);
 		}
 
 		public void ToggleAttackMode(string playerId)
@@ -184,12 +211,14 @@ namespace ApiClient
 			if (PlayerHasAttackMode(playerId))
 			{
 				_attackingPlayers.Remove(playerId);
-				AddMessage(String.Format("{0} [{1}] is now avoiding monsters...", player.Name, player.Id));
+				if(playerId == _currentPlayerId)
+					AddMessage(String.Format("{0} [{1}] is now avoiding monsters...", player.Name, player.Id));
 			}
 			else
 			{
 				_attackingPlayers.Add(playerId);
-				AddMessage(String.Format("{0} [{1}] is now attacking monsters!", player.Name, player.Id));
+				if (playerId == _currentPlayerId)
+					AddMessage(String.Format("{0} [{1}] is now attacking monsters!", player.Name, player.Id));
 			}
 		}
 
@@ -198,27 +227,38 @@ namespace ApiClient
 			if (String.IsNullOrEmpty(playerId)) return;
 			var player = GetPlayer(playerId);
 
+			if (player.CurrentMap.ToLowerInvariant().StartsWith("bad feeling"))
+			{
+				if (PlayerHasPvPMode(playerId))
+				{
+					_pvpPlayers.Remove(playerId);
+				}
+				return;
+			}
+
 			RemoveTempGoalForPlayer(playerId);
 
 			if (PlayerHasPvPMode(playerId))
 			{
 				_pvpPlayers.Remove(playerId);
-				AddMessage(String.Format("{0} [{1}] is now avoiding other players...", player.Name, player.Id));
+				if (playerId == _currentPlayerId)
+					AddMessage(String.Format("{0} [{1}] is now avoiding other players...", player.Name, player.Id));
 			}
 			else
 			{
 				_pvpPlayers.Add(playerId);
-				AddMessage(String.Format("{0} [{1}] is now attacking other players!!!", player.Name, player.Id));
+				if (playerId == _currentPlayerId)
+					AddMessage(String.Format("{0} [{1}] is now attacking other players!!!", player.Name, player.Id));
 			}
 
 		}
 
-		private bool PlayerHasPvPMode(string playerId)
+		public bool PlayerHasPvPMode(string playerId)
 		{
 			return _pvpPlayers.Contains(playerId);
 		}
 
-		private bool PlayerHasAttackMode(string playerId)
+		public bool PlayerHasAttackMode(string playerId)
 		{
 			return _attackingPlayers.Contains(playerId);
 		}
@@ -255,7 +295,7 @@ namespace ApiClient
 			AddMessage(String.Format("New goal for player {0} [{1}] set to ({2},{3})", player.Name, player.Id, goal.X, goal.Y));
 		}
 
-		private void SetTempGoalForPlayer(string playerId, Position goal)
+		public void SetTempGoalForPlayer(string playerId, Position goal)
 		{
 			_tmpGoals[playerId] = goal;
 		}
@@ -269,7 +309,7 @@ namespace ApiClient
 			AddMessage(String.Format("Removed goal for player {0} [{1}]", player.Name, player.Id));
 		}
 
-		private void RemoveTempGoalForPlayer(string playerId)
+		public void RemoveTempGoalForPlayer(string playerId)
 		{
 			if (playerId == null) return;
 			_tmpGoals.Remove(playerId);
@@ -301,7 +341,7 @@ namespace ApiClient
 		}
 
 
-		private IEnumerable<Item> GetEnemyCharacters(Character player)
+		public IEnumerable<Item> GetEnemyCharacters(Character player)
 		{
 			return player.VisibleEntities.Where(x => x.Type == "character" && !IsFriendly(x.Id));
 		}
@@ -309,14 +349,14 @@ namespace ApiClient
 		private IEnumerable<Item> GetFriends(Character player)
 		{
 			return player.VisibleEntities.Where(x => x.Type == "character" && IsFriendly(x.Id) && x.Id != player.Id);
-		} 
+		}
 
-		private IEnumerable<Item> GetMonsters(Character player)
+		public IEnumerable<Item> GetMonsters(Character player)
 		{
 			return player.VisibleEntities.Where(x => x.Type == "monster");
-		} 
+		}
 
-		private bool PlayerCanWalkHere(Character player, Map map, Position pos)
+		public bool PlayerCanWalkHere(Character player, Map map, Position pos)
 		{
 			var friends = GetFriends(player);
 			var enemyCharacters = GetEnemyCharacters(player);
@@ -355,31 +395,7 @@ namespace ApiClient
 				.Skip(1)
 				.FirstOrDefault();
 
-			return GetDirection(startPos, nextPosition);
-		}
-
-		private Direction GetDirection(Position from, Position to)
-		{
-			if (from == null || to == null) return Direction.None;
-
-			if (to.X > from.X)
-			{
-				if(to.Y > from.Y) return Direction.DownRight;
-				if(to.Y < from.Y) return Direction.UpRight;
-				return Direction.Right;
-			}
-
-			if (to.X < from.X)
-			{
-				if(to.Y > from.Y) return Direction.DownLeft;
-				if(to.Y < from.Y) return Direction.UpLeft;
-				return Direction.Left;
-			}
-
-			if (to.Y > from.Y) return Direction.Down;
-			if (to.Y < from.Y) return Direction.Up;
-
-			return Direction.None;
+			return startPos.Direction(nextPosition);
 		}
 
 		private void Update(string playerId, ScanResult scanResult)
@@ -401,7 +417,19 @@ namespace ApiClient
 				return;
 			}
 
-			var player = UpdatePlayer(playerId, scanResult);
+			var player = GetPlayer(playerId);
+
+			var armorNameBefore = player.EquippedArmorName;
+			player = UpdatePlayer(playerId, scanResult);
+
+			var charZ = _client.GetCharacter(playerId);
+			if(charZ.Id == playerId)
+				player.Update(charZ);
+
+			if (player.EquippedArmorName != armorNameBefore)
+			{
+				StoreArmorInfo(player.EquippedArmorName, 10 - player.ArmorClass);
+			}
 
 			var map = GetOrAddMap(scanResult.Map);
 			map.Update(scanResult);
@@ -422,6 +450,39 @@ namespace ApiClient
 			if (player.Position.Equals(GetTempGoalForPlayer(playerId)))
 			{
 				RemoveTempGoalForPlayer(playerId);
+			}
+
+			foreach (var itemId in player.Inventory)
+			{
+				if (AvailableItemsForPickup.Any(x => x.Id == itemId))
+				{
+					AvailableItemsForPickup.RemoveAll(x => x.Id == itemId);
+					AddMessage(string.Format("Removed {0} from list", GetInfoFor(itemId).Name));
+				}
+			}
+
+			//if (_currentPlayerId == playerId)
+			//{
+			//	ExecuteAwesomeSause(playerId, player);
+			//}
+
+			if (player.HitPoints <= 0)
+			{
+				AddMessage(string.Format("{0} [{1}] is dead!!! AAArrrghhh!!!", player.Name, player.Id));
+				DeleteCharacter(playerId);
+			}
+		}
+
+		private void ExecuteAwesomeSause(string playerId, Character player)
+		{
+			var itemSteppedOn = player.VisibleItems.FirstOrDefault(x => x.Position.Equals(player.Position));
+			if (itemSteppedOn != null)
+			{
+				if (AvailableItemsForPickup.All(x => x.Id != itemSteppedOn.Id))
+				{
+					AvailableItemsForPickup.Add(itemSteppedOn);
+					AddMessage(string.Format("Added item {0} to list...", itemSteppedOn.Name));
+				}
 			}
 
 			if (PlayerHasAttackMode(playerId) || PlayerHasPvPMode(playerId))
@@ -457,10 +518,10 @@ namespace ApiClient
 					.Select(x => x.Position);
 
 				var potionPositions = player.VisibleItems
-				                      .Where(item => GetInfoFor(item.Id).IsPotion)
-				                      .Where(item => !GetInfoFor(item.Id).IsGaseousPotion)
-				                      .OrderBy(item => item.Position.Distance(player.Position))
-				                      .Select(x => x.Position);
+				                            .Where(item => GetInfoFor(item.Id).IsPotion)
+				                            .Where(item => !GetInfoFor(item.Id).IsGaseousPotion)
+				                            .OrderBy(item => item.Position.Distance(player.Position))
+				                            .Select(x => x.Position);
 
 				Position potionPos = null;
 				Position enemyPos = null;
@@ -481,7 +542,7 @@ namespace ApiClient
 					enemyPos = enemyPositions.FirstOrDefault();
 				}
 
-				var nextPos = new[]{potionPos,monsterPos,enemyPos}
+				var nextPos = new[] {potionPos, monsterPos, enemyPos}
 					.Where(pos => pos != null)
 					.OrderBy(pos => pos.Distance(player.Position))
 					.FirstOrDefault();
@@ -496,14 +557,35 @@ namespace ApiClient
 				}
 
 				//------------------------------------------------
-
 			}
+		}
 
-			if (player.HitPoints <= 0)
+		private void StoreArmorInfo(string armorName, int ac)
+		{
+			var armorStats = new ArmorStatistics(armorName, ac);
+			if (_armorStorage.GetAll().Any(x => x.ArmorName == armorStats.ArmorName))
+				return;
+			_armorStorage.Store(armorStats);
+		}
+
+		public int? GetArmorClass(string armourName)
+		{
+			var result =_armorStorage.GetAll().FirstOrDefault(x => x.ArmorName == armourName);
+			return result == null ? (int?) null : result.ArmorClass;			
+		}
+
+		public DamageInfo GetDamageInfo(string weapon)
+		{
+			var result = _damageStorage.GetAll().Where(x => x.WeaponName == weapon).ToList();
+			if (!result.Any()) return null;
+
+			var dmgInfo = new DamageInfo
 			{
-				AddMessage(string.Format("{0} [{1}] is dead!!! AAArrrghhh!!!", player.Name, player.Id));
-				DeleteCharacter(playerId);
-			}
+				IsExplored = result.Count >= 10,
+				AverageBaseDamage = result.Average(x => x.GetBaseDamage())
+			};
+
+			return dmgInfo;
 		}
 
 		private void StoreDamageStatistics(ScanResult result, string playerId)
@@ -552,11 +634,12 @@ namespace ApiClient
 			}
 		}
 
-		private void AddMessage(string message)
+		public void AddMessage(string message)
 		{
 			if (!String.IsNullOrEmpty(message) && _messageLog.FirstOrDefault() != message)
 			{
 				_messageLog.AddFirst(message);
+				//File.AppendAllLines("logfile.txt", new[] {message});
 			}
 		}
 
@@ -567,7 +650,7 @@ namespace ApiClient
 			return _currentMaps.TryGetValue(mapName, out map) ? map : null;
 		}
 
-		private Map GetOrAddMap(string mapName)
+		public Map GetOrAddMap(string mapName)
 		{
 			var map = GetMap(mapName);
 
@@ -702,5 +785,34 @@ namespace ApiClient
 		{
 			Initialize();
 		}
+
+		public void SetRoomGoal(string playerId, IEnumerable<Position> roomPositions)
+		{
+			_roomGoals[playerId] = roomPositions;
+		}
+
+		public IEnumerable<Position> GetRoomGoal(string playerId)
+		{
+			return _roomGoals.ContainsKey(playerId)
+				       ? _roomGoals[playerId]
+				       : Enumerable.Empty<Position>();
+		}
+
+		public string GetCurrentPlayerId()
+		{
+			return _currentPlayerId;
+		}
+
+		public void SetCurrentPlayerId(string playerId)
+		{
+			_currentPlayerId = playerId;
+		}
+	}
+
+	public class DamageInfo
+	{
+		public string WeaponName { get; set; }
+		public double AverageBaseDamage { get; set; }
+		public bool IsExplored { get; set; }
 	}
 }

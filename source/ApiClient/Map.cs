@@ -4,6 +4,12 @@ using System.Linq;
 
 namespace ApiClient
 {
+	public class Room
+	{
+		public uint RoomId { get; set; }
+		public Position Position { get; set; }
+	}
+
 	[Serializable]
 	public class Map
 	{
@@ -19,7 +25,37 @@ namespace ApiClient
 
 		public IEnumerable<Position> AllPositions
 		{
-			get { return _positions.Keys; }
+			get { return _positions.Keys.OrderBy(x => x.Y).ThenBy(x => x.X); }
+		}
+
+		public Room GetRoom(Position pos)
+		{
+			return !IsRoom(pos) ? null : new Room {RoomId = GetRoomId(pos), Position = pos};
+		}
+
+		public IEnumerable<Room> AllRooms
+		{
+			get
+			{
+				var rooms = new HashSet<uint>();
+
+				foreach (var room in AllPositions
+					.Where(IsRoom)
+					.Select(x => new {RoomId = GetRoomId(x), Position = x}))
+				{
+					if(rooms.Contains(room.RoomId)) continue;
+					rooms.Add(room.RoomId);
+					yield return new Room {RoomId = room.RoomId, Position = room.Position};
+				}
+			}
+		}
+
+		public IEnumerable<Position> GetRoomPath(Room fromRoom, Room toRoom)
+		{
+			if (fromRoom == null || toRoom == null) return Enumerable.Empty<Position>();
+
+			return PathFinder.CalculatePath(fromRoom.Position, toRoom.Position,
+				pos => IsWalkable(pos, fromRoom.RoomId, toRoom.RoomId));
 		}
 
 		public void Update(ScanResult result)
@@ -60,6 +96,16 @@ namespace ApiClient
 			_hasChanges = false;
 		}
 
+		private bool IsRoom(Position pos)
+		{
+			return GetRoomId(pos) > 0;
+		}
+
+		public uint GetRoomId(Position pos)
+		{
+			return (uint) TileFlags.ROOM_ID & GetPositionValue(pos);
+		}
+
 		public bool IsWalkable(Position pos)
 		{
 			var value = (TileFlags)GetPositionValue(pos);
@@ -67,6 +113,17 @@ namespace ApiClient
 			if (value == TileFlags.NOTHING) return false;
 			if ((value & (TileFlags.PERIMETER | TileFlags.BLOCKED)) > 0) return false;
 			return true;
+		}
+
+		public bool IsWalkable(Position pos, uint fromRoom, uint toRoom)
+		{
+			if (IsRoom(pos))
+			{
+				var roomId = GetRoomId(pos);
+				return IsWalkable(pos) && roomId == fromRoom || roomId == toRoom;
+			}
+
+			return IsWalkable(pos);
 		}
 
 		public Position GetClosestWalkablePositionWithUnknownNeighbour(Position fromPos, Func<Position, bool> predicate)
@@ -82,6 +139,11 @@ namespace ApiClient
 			return AllPositions.Where(IsWalkable)
 			                   .OrderBy(x => Guid.NewGuid())
 			                   .FirstOrDefault(predicate);
+		}
+
+		public Position MaxPos
+		{
+			get { return new Position(_positions.Keys.Max(pos => pos.X), _positions.Keys.Max(pos => pos.Y)); }
 		}
 	}
 }

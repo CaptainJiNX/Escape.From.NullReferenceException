@@ -31,11 +31,12 @@ namespace ApiClient
 
 		public override string ToString()
 		{
-			return string.Format("{0},{1}", X, Y);
+			return String.Format("{0},{1}", X, Y);
 		}
 
 		public int Distance(Position to)
 		{
+
 			return Math.Max(Math.Abs(X - to.X), Math.Abs(Y - to.Y));
 		}
 
@@ -54,6 +55,30 @@ namespace ApiClient
 			yield return new Position(east, south);
 			yield return new Position(west, north);
 			yield return new Position(west, south);
+		}
+
+		public Direction Direction(Position to)
+		{
+			if (to == null) return ApiClient.Direction.None;
+
+			if (to.X > X)
+			{
+				if(to.Y > Y) return ApiClient.Direction.DownRight;
+				if(to.Y < Y) return ApiClient.Direction.UpRight;
+				return ApiClient.Direction.Right;
+			}
+
+			if (to.X < X)
+			{
+				if(to.Y > Y) return ApiClient.Direction.DownLeft;
+				if(to.Y < Y) return ApiClient.Direction.UpLeft;
+				return ApiClient.Direction.Left;
+			}
+
+			if (to.Y > Y) return ApiClient.Direction.Down;
+			if (to.Y < Y) return ApiClient.Direction.Up;
+
+			return ApiClient.Direction.None;
 		}
 	}
 }

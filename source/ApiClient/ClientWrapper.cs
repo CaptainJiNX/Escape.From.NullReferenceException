@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Threading;
 using Newtonsoft.Json.Linq;
 
 namespace ApiClient
@@ -7,7 +8,6 @@ namespace ApiClient
 	public class ClientWrapper : IClientWrapper
 	{
 		private readonly Guid _sessionId;
-		private readonly WebClient _client;
 
 		public ClientWrapper(Guid sessionId)
 		{
@@ -15,7 +15,6 @@ namespace ApiClient
 
 			//Change SSL checks so that all checks pass
 			ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, errors) => true;
-			_client = new WebClient();
 		}
 
 		public Guid GetSessionId()
@@ -55,27 +54,27 @@ namespace ApiClient
 
 		public JObject Quaff(string itemId, string charId)
 		{
-			return RunCommand("quaff", itemId, charId);
+			return RunSafeCommand("quaff", itemId, charId);
 		}
 
 		public JObject Wield(string itemId, string charId)
 		{
-			return RunCommand("wield", itemId, charId);
+			return RunSafeCommand("wield", itemId, charId);
 		}
 
 		public JObject Unwield(string itemId, string charId)
 		{
-			return RunCommand("unwield", itemId, charId);
+			return RunSafeCommand("unwield", itemId, charId);
 		}
 
 		public JObject Equip(string itemId, string charId)
 		{
-			return RunCommand("equip", itemId, charId);
+			return RunSafeCommand("equip", itemId, charId);
 		}
 
 		public JObject Unequip(string itemId, string charId)
 		{
-			return RunCommand("unequip", itemId, charId);
+			return RunSafeCommand("unequip", itemId, charId);
 		}
 
 		public ScanResult Move(string charId, Direction direction)
@@ -124,12 +123,12 @@ namespace ApiClient
 
 		public JObject Get(string charId)
 		{
-			return RunCommand("get", charId);
+			return RunSafeCommand("get", charId);
 		}
 
 		public JObject Drop(string itemId, string charId)
 		{
-			return RunCommand("drop", itemId, charId);
+			return RunSafeCommand("drop", itemId, charId);
 		}
 
 		public HighScoreList GetHighScores()
@@ -142,9 +141,43 @@ namespace ApiClient
 			try
 			{
 				var commandUri = GetCommandUri(command, args);
-				var response = _client.DownloadString(commandUri);
 
-				return JObject.Parse(response);
+				using (var client = new WebClient())
+				{
+					var response = client.DownloadString(commandUri);
+					return JObject.Parse(response);
+				}
+			}
+			catch (Exception ex)
+			{
+				return new JObject {{"error", new JValue(ex.Message)}};
+			}
+		}
+
+		private JObject RunSafeCommand(string command, params string[] args)
+		{
+			try
+			{
+				var commandUri = GetCommandUri(command, args);
+
+				using (var client = new WebClient())
+				{
+
+					JObject jResponse;
+					int times = 0;
+					do
+					{
+						if (times > 0)
+						{
+							Thread.Sleep(50);
+						}
+
+						var response = client.DownloadString(commandUri);
+						jResponse = JObject.Parse(response);
+						times++;
+					} while (times < 5 && jResponse["error"] != null);
+					return jResponse;
+				}
 			}
 			catch (Exception ex)
 			{

@@ -28,4 +28,30 @@ namespace ApiClient
 			File.AppendAllLines(StorageLocation, new[] {value.ToString()});
 		}
 	}
+		
+	public class ArmorStatisticsStorage : ISimpleStorage<ArmorStatistics>
+	{
+		private const string StorageLocation = "ArmorStatistics.csv";
+		private readonly List<ArmorStatistics> _statistics = new List<ArmorStatistics>(); 
+
+		public ArmorStatisticsStorage()
+		{
+			if (!File.Exists(StorageLocation)) return;
+			foreach (var line in File.ReadAllLines(StorageLocation))
+			{
+				_statistics.Add(new ArmorStatistics(line));
+			}
+		}
+
+		public IEnumerable<ArmorStatistics> GetAll()
+		{
+			return _statistics;
+		}
+
+		public void Store(ArmorStatistics value)
+		{
+			_statistics.Add(value);
+			File.AppendAllLines(StorageLocation, new[] {value.ToString()});
+		}
+	}
 }

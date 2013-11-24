@@ -17,6 +17,16 @@ namespace ApiClient
 		public int? Speed { get; set; }
 		// "special":null
 
+		public bool IsWeapon
+		{
+			get { return SubType == "weapon"; }
+		}
+
+		public bool IsArmor
+		{
+			get { return SubType == "armor"; }
+		}
+
 		public bool IsPotion
 		{
 			get { return SubType == "potion"; }

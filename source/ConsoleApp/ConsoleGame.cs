@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using ApiClient;
 using Attribute = ApiClient.Attribute;
 
@@ -10,18 +12,21 @@ namespace ConsoleApp
 	class ConsoleGame
 	{
 		private readonly GameContext _context;
-		private string _currentPlayerId;
 		private string _player1Id;
 		private string _player2Id;
 		private string _player3Id;
 		private readonly Console2 _console2;
 		private readonly Dictionary<string, ConsoleArea> _maps = new Dictionary<string, ConsoleArea>();
 		private static readonly string[] PlayerNames = new[] { "JiNX the first", "JiNX the second", "JiNX the third" };
+		private HenchMan _follower;
+		private bool _paused = false;
+		private RoomWalker _roomWalker;
+		private AutoNinjaBot _ninja;
 
 		public ConsoleGame()
 		{
 			var client = new ClientWrapper(Guid.Parse(File.ReadAllText("apikey.txt")));
-			_context = new GameContext(client, new BinaryMapStorage(), new DamageStatisticsStorage());
+			_context = new GameContext(client, new BinaryMapStorage(), new DamageStatisticsStorage(), new ArmorStatisticsStorage());
 			_console2 = new Console2(120, 41, ConsoleColor.DarkRed);
 		}
 
@@ -29,10 +34,32 @@ namespace ConsoleApp
 		{
 			InitPlayers();
 
+			Task.Factory.StartNew(InputLoop);
+			Task.Factory.StartNew(ScanLoop);
+
 			RunGameLoop();
 
 			Console.WriteLine("Done...");
 			Console.ReadLine();
+		}
+
+		private void ScanLoop()
+		{
+			while (true)
+			{
+				_context.ScanAndUpdate(_context.GetCurrentPlayerId());
+				Thread.Sleep(TimeSpan.FromMilliseconds(500));
+			}
+		}
+
+		private void InputLoop()
+		{
+			while (true)
+			{
+				PlayerInput();
+				_paused = false;
+				_context.ScanAndUpdate(_context.GetCurrentPlayerId());
+			}
 		}
 
 		private ConsoleArea CreateMapArea(Map map)
@@ -122,6 +149,7 @@ namespace ConsoleApp
 
 		private ConsoleKeyInfo CreateMessagePopup(string title, string[] messages)
 		{
+			_paused = true;
 			var max = Math.Max(messages.Max(x => x.Length), title.Length);
 			var area = new ConsoleArea((short) (max + 4), (short) (messages.Count() + 2));
 			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
@@ -145,6 +173,7 @@ namespace ConsoleApp
 
 		private string CreateTextInputPopup(string title, string prompt)
 		{
+			_paused = true;
 			var area = new ConsoleArea(70, 3);
 			area.SetBorderStyle(ConsoleArea.BorderStyle.Single);
 			area.SetBorderBackground(ConsoleColor.Black);
@@ -186,10 +215,13 @@ namespace ConsoleApp
 
 			while (true)
 			{
-				_context.Scan(_currentPlayerId);
+				while (_paused)
+				{
+					Thread.Sleep(TimeSpan.FromMilliseconds(50));
+				}
 
-				var player = _context.GetPlayer(_currentPlayerId);
-				var map = _context.GetMap(player.CurrentMap);
+				var player = _context.GetPlayer(_context.GetCurrentPlayerId());
+				var map = _context.GetOrAddMap(player.CurrentMap);
 				var mapArea = UpdateMapArea(map, player, previousItemsAndEntities);
 				UpdateMessageArea(messageArea);
 				UpdateDebugArea(debugArea, player, map);
@@ -201,19 +233,19 @@ namespace ConsoleApp
 				_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
 				_console2.DrawArea(debugArea, 0, (short) (mapArea.Height + messageArea.Height));
 
-				var key = Console.ReadKey(true);
-
-				if (key.Key == ConsoleKey.Escape)
-				{
-					break;
-				}
-
-				HandleKeyPress(key, player);
+				Thread.Sleep(TimeSpan.FromMilliseconds(50));
 			}
 
 			Console.ResetColor();
 			Console.Clear();
 			Console.CursorVisible = true;
+		}
+
+		private void PlayerInput()
+		{
+			var key = Console.ReadKey(true);
+			var player = _context.GetPlayer(_context.GetCurrentPlayerId());
+			HandleKeyPress(key, player);
 		}
 
 		private void HandleKeyPress(ConsoleKeyInfo key, Character player)
@@ -292,26 +324,26 @@ namespace ConsoleApp
 
 					if (direction != Direction.None)
 					{
-						_context.Move(_currentPlayerId, direction);
+						_context.Move(_context.GetCurrentPlayerId(), direction);
 					}
 					else
 					{
 						switch (key.KeyChar)
 						{
 							case '1':
-								_currentPlayerId = _player1Id;
+								_context.SetCurrentPlayerId(_player1Id);
 								break;
 							case '2':
-								_currentPlayerId = _player2Id;
+								_context.SetCurrentPlayerId(_player2Id);
 								break;
 							case '3':
-								_currentPlayerId = _player3Id;
+								_context.SetCurrentPlayerId(_player3Id);
 								break;
 							case '0':
-								_context.ToggleAttackMode(_currentPlayerId);
+								_context.ToggleAttackMode(_context.GetCurrentPlayerId());
 								break;
 							case '9':
-								_context.TogglePvPMode(_currentPlayerId);
+								_context.TogglePvPMode(_context.GetCurrentPlayerId());
 								break;
 						}
 					}
@@ -334,7 +366,7 @@ namespace ConsoleApp
 		private void UpdateMessageArea(ConsoleArea messageArea)
 		{
 			messageArea.Clear();
-			var messages = _context.Messages.Take(5).Select((m, i) => new {Text = m, Index = i});
+			var messages = _context.Messages.Take(5).Select((m, i) => new {Text = m, Index = i}).ToList();
 			foreach (var message in messages)
 			{
 				messageArea.Write(message.Text, 0, message.Index);
@@ -380,9 +412,28 @@ namespace ConsoleApp
 
 			switch ((cmd ?? "").ToLowerInvariant())
 			{
+				case "ninja":
+					StartNinja();
+					break;
+
+				case "stopninja":
+					StopNinja();
+					break;
+
 				case "fp":
 				case "findpath":
 					FindPath(args);
+					break;
+
+				case "frp":
+				case "findroompaths":
+					FindRoomPaths();
+					break;
+
+				case "selr":
+				case "selectroom":
+					_context.SetRoomGoal(_context.GetCurrentPlayerId(), SelectRoom());
+					StartRoomWalker();
 					break;
 
 				case "fu":
@@ -405,6 +456,10 @@ namespace ConsoleApp
 					ShowHighScores();
 					break;
 
+				case "sf":
+					StartFollower();
+					break;
+
 				default:
 					CreateMessagePopup("Unknown command", new[]
 					{
@@ -414,9 +469,48 @@ namespace ConsoleApp
 						"findup (fu)",
 						"finddown (fd)",
 						"setgoal (sg) {x,y}",
-						"highscores (hs)"
+						"highscores (hs)",
+						"startfollower (sf)",
 					});
 					break;
+			}
+		}
+
+		private void StartRoomWalker()
+		{
+			if (_roomWalker == null)
+				_roomWalker = new RoomWalker(_context, _context.GetPlayer(_context.GetCurrentPlayerId()));
+
+			_roomWalker.Start();
+		}
+
+		private void StartFollower()
+		{
+			if (_follower != null)
+			{
+				_follower.Stop();
+			}
+
+			_follower = new HenchMan(_context, _context.GetPlayer(_player3Id), _context.GetCurrentPlayerId());
+			_follower.Start();
+		}
+
+		private void StartNinja()
+		{
+			if (_ninja != null)
+			{
+				_ninja.Stop();
+			}
+
+			_ninja = new AutoNinjaBot(_context, _context.GetPlayer(_context.GetCurrentPlayerId()));
+			_ninja.Start();
+		}
+
+		private void StopNinja()
+		{
+			if (_ninja != null)
+			{
+				_ninja.Stop();
 			}
 		}
 
@@ -433,7 +527,7 @@ namespace ConsoleApp
 
 		private void FindPosition(TileFlags tileToFind)
 		{
-			var player = _context.GetPlayer(_currentPlayerId);
+			var player = _context.GetPlayer(_context.GetCurrentPlayerId());
 			var map = _context.GetMap(player.CurrentMap);
 			var mapArea = CreateMapArea(map);
 
@@ -468,7 +562,7 @@ namespace ConsoleApp
 				posArg1 = TryParsePosition(args.FirstOrDefault());
 			}
 
-			var player = _context.GetPlayer(_currentPlayerId);
+			var player = _context.GetPlayer(_context.GetCurrentPlayerId());
 			var map = _context.GetMap(player.CurrentMap);
 			var mapArea = CreateMapArea(map);
 
@@ -507,7 +601,7 @@ namespace ConsoleApp
 				posArg2 = TryParsePosition(args.Skip(1).FirstOrDefault());
 			}
 
-			var player = _context.GetPlayer(_currentPlayerId);
+			var player = _context.GetPlayer(_context.GetCurrentPlayerId());
 			var map = _context.GetMap(player.CurrentMap);
 			var mapArea = CreateMapArea(map);
 
@@ -526,17 +620,65 @@ namespace ConsoleApp
 			mapArea.Write("2", endPos.X, endPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
 			mapArea.CenterOffset(endPos.X, endPos.Y);
 			_console2.DrawArea(mapArea, 0, 0);
+
 			var path = PathFinder.CalculatePath(startPos, endPos, map.IsWalkable);
 
-			foreach (var pathPos in path)
+			WritePath(path, map, mapArea);
+
+			_console2.DrawArea(mapArea, 0, 0);
+
+			Console.ReadKey(true);
+		}
+
+		private void FindRoomPaths()
+		{
+			var player = _context.GetPlayer(_context.GetCurrentPlayerId());
+			var map = _context.GetMap(player.CurrentMap);
+			var mapArea = CreateMapArea(map);
+
+			_console2.DrawArea(CreatePlayerArea(player), mapArea.Width, 0);
+
+			var allRooms = map.AllRooms.ToList();
+
+			foreach (var room in allRooms)
 			{
-				var tile = GetTile(map.GetPositionValue(pathPos));
-				mapArea.Write(tile.Character, pathPos.X, pathPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+				foreach (var otherRoom in allRooms.Except(new[] { room }))
+				{
+					var path = map.GetRoomPath(room, otherRoom).ToList();
+
+					if (path.Any())
+					{
+						WritePath(path, map, mapArea);
+						var center = path.Skip(path.Count/2).First();
+						mapArea.CenterOffset(center.X, center.Y);
+						_console2.DrawArea(mapArea, 0, 0);
+						Console.ReadKey(true);
+						BluePath(path, map, mapArea);
+					}
+				}
 			}
 
 			_console2.DrawArea(mapArea, 0, 0);
 
 			Console.ReadKey(true);
+		}
+
+		private static void BluePath(IEnumerable<Position> path, Map map, ConsoleArea mapArea)
+		{
+			foreach (var pathPos in path)
+			{
+				var tile = GetTile(map.GetPositionValue(pathPos));
+				mapArea.Write(tile.Character, pathPos.X, pathPos.Y, ConsoleColor.Blue, ConsoleColor.DarkBlue);
+			}
+		}
+
+		private static void WritePath(IEnumerable<Position> path, Map map, ConsoleArea mapArea)
+		{
+			foreach (var pathPos in path)
+			{
+				var tile = GetTile(map.GetPositionValue(pathPos));
+				mapArea.Write(tile.Character, pathPos.X, pathPos.Y, ConsoleColor.Green, ConsoleColor.DarkGreen);
+			}
 		}
 
 		private Position SelectPosition(Map map, Position start, string title)
@@ -584,6 +726,48 @@ namespace ConsoleApp
 				}
 
 				FillArea(map, mapArea, new[] { previousPosition });
+			}
+		}
+		private IEnumerable<Position> SelectRoom()
+		{
+			var player = _context.GetPlayer(_context.GetCurrentPlayerId());
+			var map = _context.GetMap(player.CurrentMap);
+
+			var mapArea = CreateMapArea(map);
+			mapArea.SetTitle("Select Room");
+
+			var allRooms = map.AllRooms.ToList();
+			int selectedIndex = 0;
+
+			while (true)
+			{
+				var selectedRoom = allRooms[selectedIndex];
+				var roomPositions = map.AllPositions.Where(pos => map.GetRoomId(pos) == selectedRoom.RoomId).ToList();
+
+				BluePath(roomPositions, map, mapArea);
+				var roomPos = roomPositions.First();
+				mapArea.CenterOffset(roomPos.X, roomPos.Y);
+				_console2.DrawArea(mapArea, 0, 0);
+
+				switch (Console.ReadKey(true).Key)
+				{
+					case ConsoleKey.UpArrow:
+						selectedIndex++;
+						if (selectedIndex >= allRooms.Count)
+							selectedIndex = 0;
+						break;
+					case ConsoleKey.DownArrow:
+						selectedIndex--;
+						if (selectedIndex < 0)
+							selectedIndex = allRooms.Count - 1;
+						break;
+					case ConsoleKey.Enter:
+						return roomPositions;
+					case ConsoleKey.Escape:
+						return null;
+				}
+
+				FillArea(map, mapArea, roomPositions);
 			}
 		}
 
@@ -749,7 +933,7 @@ namespace ConsoleApp
 			_player2Id = (player2 ?? _context.CreateNewCharacter(PlayerNames[1], 14, 12, 12, 10, 10)).Id;
 			_player3Id = (player3 ?? _context.CreateNewCharacter(PlayerNames[2], 10, 14, 14, 10, 10)).Id;
 
-			_currentPlayerId = _player1Id;
+			_context.SetCurrentPlayerId(_player1Id);
 		}
 
 		private ConsoleColor GetItemColor(Item item)
@@ -773,7 +957,7 @@ namespace ConsoleApp
 
 		private ConsoleColor GetPlayerColor(string playerId)
 		{
-			if (playerId == _currentPlayerId)
+			if (playerId == _context.GetCurrentPlayerId())
 			{
 				return ConsoleColor.Magenta;
 			}
@@ -804,7 +988,7 @@ namespace ConsoleApp
 			}
 		}
 
-		private class Tile
+		public class Tile
 		{
 			public Tile(char character,
 				ConsoleColor foreColor = ConsoleColor.Gray,
@@ -820,7 +1004,7 @@ namespace ConsoleApp
 			public ConsoleColor BackColor { get; private set; }
 		}
 
-		private Tile GetTile(uint tileValue)
+		public static Tile GetTile(uint tileValue)
 		{
 			var flags = (TileFlags)tileValue;
 
